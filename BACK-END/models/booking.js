@@ -7,32 +7,61 @@ const bookingSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+
+    owner: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+
     vehicle: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Vehicle",
       required: true,
     },
+
     startDate: {
       type: Date,
       required: true,
     },
+
     endDate: {
       type: Date,
       required: true,
     },
+
     rentalPlan: {
       type: String,
       enum: ["daily", "weekly", "monthly"],
       required: true,
     },
-    totalPrice: {
+
+    totalAmount: {
       type: Number,
       required: true,
     },
+
     status: {
       type: String,
-      enum: ["pending", "confirmed", "cancelled", "completed"],
+      enum: ["pending", "approved", "rejected", "cancelled", "completed"],
       default: "pending",
+    },
+
+    paymentStatus: {
+      type: String,
+      enum: ["unpaid", "paid", "failed", "refunded"],
+      default: "unpaid",
+    },
+
+    payment: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Payment",
+      default: null,
+    },
+
+    paidAt: {
+      type: Date,
+      default: null,
     },
   },
   {
@@ -41,4 +70,4 @@ const bookingSchema = new mongoose.Schema(
 );
 
 module.exports =
-  mongoose.models.booking || mongoose.model("booking", bookingSchema);
+  mongoose.models.Booking || mongoose.model("Booking", bookingSchema);

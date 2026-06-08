@@ -26,6 +26,8 @@ function VehicleDetails() {
     rentalPlan: "daily",
   });
 
+  const today = new Date().toISOString().split("T")[0];
+
   const getVehicle = async () => {
     try {
       setLoading(true);
@@ -48,9 +50,19 @@ function VehicleDetails() {
   }, [id]);
 
   const changeHandler = (e) => {
-    setBookingData({
-      ...bookingData,
-      [e.target.name]: e.target.value,
+    const { name, value } = e.target;
+
+    setBookingData((prev) => {
+      const updatedData = {
+        ...prev,
+        [name]: value,
+      };
+
+      if (name === "startDate" && prev.endDate && value > prev.endDate) {
+        updatedData.endDate = "";
+      }
+
+      return updatedData;
     });
   };
 
@@ -60,7 +72,14 @@ function VehicleDetails() {
     setError("");
 
     const token = localStorage.getItem("token");
-    const user = JSON.parse(localStorage.getItem("user"));
+
+    let user = null;
+
+    try {
+      user = JSON.parse(localStorage.getItem("user"));
+    } catch {
+      user = null;
+    }
 
     if (!token || !user) {
       setError("Please login as customer before booking.");
@@ -77,13 +96,34 @@ function VehicleDetails() {
       return;
     }
 
+    const start = new Date(bookingData.startDate);
+    const end = new Date(bookingData.endDate);
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      setError("Invalid date selected.");
+      return;
+    }
+
+    if (end <= start) {
+      setError("End date must be after start date.");
+      return;
+    }
+
     try {
       const res = await API.post("/bookings", {
         vehicleId: id,
-        ...bookingData,
+        startDate: bookingData.startDate,
+        endDate: bookingData.endDate,
+        rentalPlan: bookingData.rentalPlan,
       });
 
       setMessage(res.data.message || "Booking request sent successfully");
+
+      setBookingData({
+        startDate: "",
+        endDate: "",
+        rentalPlan: "daily",
+      });
     } catch (error) {
       console.log("BOOKING ERROR:", error);
       setError(error.response?.data?.message || "Booking failed");
@@ -151,19 +191,43 @@ function VehicleDetails() {
           <div className="flex flex-col justify-between gap-4 md:flex-row">
             <div>
               <h1 className="text-4xl font-black text-slate-950">
-                {vehicle?.vehicleName}
+                {vehicle?.vehicleName || "Vehicle"}
               </h1>
 
               <p className="mt-2 text-slate-500">
-                {vehicle?.brand} {vehicle?.model}{" "}
-                {vehicle?.modelYear ? `• ${vehicle.modelYear}` : ""}
+                {vehicle?.brand || "Brand"} {vehicle?.model || ""}
+                {vehicle?.modelYear ? ` • ${vehicle.modelYear}` : ""}
               </p>
             </div>
 
-            <span className="badge h-fit bg-emerald-50 text-emerald-700">
+            <span
+              className={`badge h-fit ${
+                vehicle?.status === "available"
+                  ? "bg-emerald-50 text-emerald-700"
+                  : vehicle?.status === "maintenance"
+                    ? "bg-yellow-50 text-yellow-700"
+                    : "bg-red-50 text-red-700"
+              }`}
+            >
               {vehicle?.status || "available"}
             </span>
           </div>
+
+          {vehicle?.approvalStatus && (
+            <div className="mt-4">
+              <span
+                className={`badge ${
+                  vehicle.approvalStatus === "approved"
+                    ? "bg-emerald-50 text-emerald-700"
+                    : vehicle.approvalStatus === "rejected"
+                      ? "bg-red-50 text-red-700"
+                      : "bg-yellow-50 text-yellow-700"
+                }`}
+              >
+                Approval: {vehicle.approvalStatus}
+              </span>
+            </div>
+          )}
 
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
             <Info
@@ -226,6 +290,7 @@ function VehicleDetails() {
                 className="input-style"
                 type="date"
                 name="startDate"
+                min={today}
                 value={bookingData.startDate}
                 onChange={changeHandler}
               />
@@ -240,6 +305,7 @@ function VehicleDetails() {
                 className="input-style"
                 type="date"
                 name="endDate"
+                min={bookingData.startDate || today}
                 value={bookingData.endDate}
                 onChange={changeHandler}
               />

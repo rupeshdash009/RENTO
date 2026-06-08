@@ -1,4 +1,4 @@
-const Booking = require("../models/Booking");
+const Booking = require("../models/booking");
 const Vehicle = require("../models/Vehicle");
 const MaintenanceBlock = require("../models/MaintenanceBlock");
 
@@ -13,10 +13,17 @@ const calculateTotalAmount = (vehicle, rentalPlan, startDate, endDate) => {
     throw new Error("End date must be after start date");
   }
 
-  if (rentalPlan === "daily") return days * vehicle.priceDaily;
-  if (rentalPlan === "weekly") return Math.ceil(days / 7) * vehicle.priceWeekly;
-  if (rentalPlan === "monthly")
+  if (rentalPlan === "daily") {
+    return days * vehicle.priceDaily;
+  }
+
+  if (rentalPlan === "weekly") {
+    return Math.ceil(days / 7) * vehicle.priceWeekly;
+  }
+
+  if (rentalPlan === "monthly") {
     return Math.ceil(days / 30) * vehicle.priceMonthly;
+  }
 
   throw new Error("Invalid rental plan");
 };
@@ -46,6 +53,21 @@ const createBooking = async (req, res) => {
     if (!vehicleId || !startDate || !endDate || !rentalPlan) {
       return res.status(400).json({
         message: "Vehicle, start date, end date and rental plan are required",
+      });
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return res.status(400).json({
+        message: "Invalid start date or end date",
+      });
+    }
+
+    if (end <= start) {
+      return res.status(400).json({
+        message: "End date must be after start date",
       });
     }
 
@@ -111,13 +133,14 @@ const createBooking = async (req, res) => {
       status: "pending",
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       message: "Booking request sent successfully",
       booking,
     });
   } catch (error) {
     console.error("CREATE BOOKING ERROR:", error);
-    res.status(500).json({
+
+    return res.status(500).json({
       message: "Booking creation failed",
       error: error.message,
     });
@@ -133,9 +156,11 @@ const getMyBookings = async (req, res) => {
       .populate("owner", "name email")
       .sort({ createdAt: -1 });
 
-    res.status(200).json(bookings);
+    return res.status(200).json(bookings);
   } catch (error) {
-    res.status(500).json({
+    console.error("GET MY BOOKINGS ERROR:", error);
+
+    return res.status(500).json({
       message: "Failed to fetch bookings",
       error: error.message,
     });
@@ -151,9 +176,11 @@ const getOwnerBookings = async (req, res) => {
       .populate("user", "name email")
       .sort({ createdAt: -1 });
 
-    res.status(200).json(bookings);
+    return res.status(200).json(bookings);
   } catch (error) {
-    res.status(500).json({
+    console.error("GET OWNER BOOKINGS ERROR:", error);
+
+    return res.status(500).json({
       message: "Failed to fetch owner bookings",
       error: error.message,
     });
@@ -179,6 +206,12 @@ const approveBooking = async (req, res) => {
       });
     }
 
+    if (booking.status !== "pending") {
+      return res.status(400).json({
+        message: "Only pending bookings can be approved",
+      });
+    }
+
     const existingApprovedBooking = await Booking.findOne({
       _id: { $ne: booking._id },
       vehicle: booking.vehicle,
@@ -193,15 +226,29 @@ const approveBooking = async (req, res) => {
       });
     }
 
+    const maintenanceConflict = await checkMaintenanceConflict(
+      booking.vehicle,
+      booking.startDate,
+      booking.endDate,
+    );
+
+    if (maintenanceConflict) {
+      return res.status(409).json({
+        message: "Vehicle is blocked for maintenance during selected dates",
+      });
+    }
+
     booking.status = "approved";
     await booking.save();
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Booking approved successfully",
       booking,
     });
   } catch (error) {
-    res.status(500).json({
+    console.error("APPROVE BOOKING ERROR:", error);
+
+    return res.status(500).json({
       message: "Booking approval failed",
       error: error.message,
     });
@@ -227,15 +274,23 @@ const rejectBooking = async (req, res) => {
       });
     }
 
+    if (booking.status !== "pending") {
+      return res.status(400).json({
+        message: "Only pending bookings can be rejected",
+      });
+    }
+
     booking.status = "rejected";
     await booking.save();
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Booking rejected successfully",
       booking,
     });
   } catch (error) {
-    res.status(500).json({
+    console.error("REJECT BOOKING ERROR:", error);
+
+    return res.status(500).json({
       message: "Booking rejection failed",
       error: error.message,
     });
@@ -261,21 +316,23 @@ const cancelBooking = async (req, res) => {
       });
     }
 
-    if (booking.status === "approved") {
+    if (!["pending", "rejected"].includes(booking.status)) {
       return res.status(400).json({
-        message: "Approved booking cannot be cancelled from here",
+        message: "Only pending or rejected bookings can be cancelled",
       });
     }
 
     booking.status = "cancelled";
     await booking.save();
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Booking cancelled successfully",
       booking,
     });
   } catch (error) {
-    res.status(500).json({
+    console.error("CANCEL BOOKING ERROR:", error);
+
+    return res.status(500).json({
       message: "Booking cancellation failed",
       error: error.message,
     });

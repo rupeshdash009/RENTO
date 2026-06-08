@@ -2,38 +2,42 @@ const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const dotenv = require("dotenv");
 const User = require("./models/user");
-
+const dns = require("dns");
 dotenv.config();
-
+dns.setServers(["8.8.8.8", "1.1.1.1"]);
 const createAdmin = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URI);
-
-    const existingAdmin = await User.findOne({
-      email: "admin@rentigo.com",
-    });
-
-    if (existingAdmin) {
-      console.log("Admin already exists");
-      process.exit();
+    if (!process.env.MONGO_URI) {
+      throw new Error("MONGO_URI missing in .env");
     }
 
-    const hashedPassword = await bcrypt.hash("admin123", 10);
+    await mongoose.connect(process.env.MONGO_URI);
 
-    await User.create({
+    console.log("Connected DB:", mongoose.connection.name);
+
+    const email = "admin@rentigo.com";
+    const password = "admin123";
+
+    await User.deleteOne({ email });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const admin = await User.create({
       name: "RentiGo Admin",
-      email: "admin@rentigo.com",
+      email,
       password: hashedPassword,
       role: "admin",
+      isActive: true,
     });
 
-    console.log("Admin created successfully");
-    console.log("Email: admin@rentigo.com");
-    console.log("Password: admin123");
+    console.log("Admin reset successfully");
+    console.log("ID:", admin._id.toString());
+    console.log("Email:", email);
+    console.log("Password:", password);
 
-    process.exit();
+    process.exit(0);
   } catch (error) {
-    console.error("Admin creation failed:", error.message);
+    console.error("Admin reset failed:", error);
     process.exit(1);
   }
 };
