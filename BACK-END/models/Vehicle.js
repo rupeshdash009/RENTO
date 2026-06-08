@@ -34,9 +34,17 @@ const vehicleSchema = new mongoose.Schema(
       trim: true,
     },
 
+    variant: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
     modelYear: {
       type: Number,
       required: true,
+      min: 2022,
+      max: 2026,
     },
 
     type: {
@@ -45,9 +53,25 @@ const vehicleSchema = new mongoose.Schema(
       required: true,
     },
 
+    bodyType: {
+      type: String,
+      enum: [
+        "scooter",
+        "motorcycle",
+        "electric-scooter",
+        "hatchback",
+        "sedan",
+        "suv",
+        "mpv",
+        "electric-car",
+        "luxury",
+      ],
+      default: "motorcycle",
+    },
+
     fuelType: {
       type: String,
-      enum: ["petrol", "diesel", "electric", "cng"],
+      enum: ["petrol", "diesel", "electric", "cng", "hybrid"],
       required: true,
     },
 
@@ -72,15 +96,51 @@ const vehicleSchema = new mongoose.Schema(
       required: true,
     },
 
+    depositAmount: {
+      type: Number,
+      default: 0,
+    },
+
     location: {
       type: String,
       required: true,
       trim: true,
     },
 
+    city: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    description: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
     images: {
       type: [String],
       default: [],
+    },
+
+    specs: {
+      engineCC: { type: Number, default: null },
+      batteryRangeKm: { type: Number, default: null },
+      mileageKmpl: { type: Number, default: null },
+      seatingCapacity: { type: Number, default: null },
+      color: { type: String, default: "" },
+      power: { type: String, default: "" },
+      torque: { type: String, default: "" },
+      topSpeed: { type: String, default: "" },
+      bootSpace: { type: String, default: "" },
+      groundClearance: { type: String, default: "" },
+      airbags: { type: Number, default: null },
+      abs: { type: Boolean, default: false },
+      features: {
+        type: [String],
+        default: [],
+      },
     },
 
     status: {
@@ -92,7 +152,7 @@ const vehicleSchema = new mongoose.Schema(
     approvalStatus: {
       type: String,
       enum: ["pending", "approved", "rejected"],
-      default: "pending",
+      default: "approved",
     },
 
     rejectionReason: {
