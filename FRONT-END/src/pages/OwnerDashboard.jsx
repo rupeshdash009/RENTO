@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import axios from "axios";
 import useAutoRefresh from "../hooks/useAutoRefresh";
 import { triggerDataRefresh } from "../utils/dataRefresh";
@@ -24,25 +24,324 @@ const emptyVehicleForm = {
   vehicleNumber: "",
   brand: "",
   model: "",
+  variant: "",
   modelYear: "",
   type: "two-wheeler",
+  bodyType: "",
   fuelType: "petrol",
   transmission: "manual",
   priceDaily: "",
   priceWeekly: "",
   priceMonthly: "",
+  depositAmount: "",
   location: "",
+  description: "",
   images: "",
   status: "available",
+};
+
+const vehiclePresets = [
+  {
+    label: "Honda Activa 6G DLX",
+    vehicleName: "Honda Activa 6G",
+    brand: "Honda",
+    model: "Activa 6G",
+    variant: "DLX",
+    type: "two-wheeler",
+    bodyType: "scooter",
+    fuelType: "petrol",
+    transmission: "automatic",
+    baseDaily: 450,
+    image: "https://images.pexels.com/photos/2549941/pexels-photo-2549941.jpeg",
+    description:
+      "Reliable city scooter for daily commute, college travel and short-distance rentals.",
+  },
+  {
+    label: "TVS Jupiter ZX",
+    vehicleName: "TVS Jupiter",
+    brand: "TVS",
+    model: "Jupiter",
+    variant: "ZX",
+    type: "two-wheeler",
+    bodyType: "scooter",
+    fuelType: "petrol",
+    transmission: "automatic",
+    baseDaily: 430,
+    image: "https://images.pexels.com/photos/2549941/pexels-photo-2549941.jpeg",
+    description:
+      "Comfortable scooter with good mileage and easy handling for city rides.",
+  },
+  {
+    label: "Ola S1 Pro",
+    vehicleName: "Ola S1 Pro",
+    brand: "Ola Electric",
+    model: "S1 Pro",
+    variant: "Gen 2",
+    type: "two-wheeler",
+    bodyType: "electric-scooter",
+    fuelType: "electric",
+    transmission: "automatic",
+    baseDaily: 650,
+    image: "https://images.pexels.com/photos/110844/pexels-photo-110844.jpeg",
+    description:
+      "Modern electric scooter with silent drive, smooth acceleration and low running cost.",
+  },
+  {
+    label: "Royal Enfield Classic 350",
+    vehicleName: "Royal Enfield Classic 350",
+    brand: "Royal Enfield",
+    model: "Classic 350",
+    variant: "Signals",
+    type: "two-wheeler",
+    bodyType: "motorcycle",
+    fuelType: "petrol",
+    transmission: "manual",
+    baseDaily: 850,
+    image: "https://images.pexels.com/photos/2519374/pexels-photo-2519374.jpeg",
+    description:
+      "Cruiser motorcycle for weekend trips, highway rides and premium rentals.",
+  },
+  {
+    label: "Yamaha MT-15 V2",
+    vehicleName: "Yamaha MT-15",
+    brand: "Yamaha",
+    model: "MT-15",
+    variant: "V2",
+    type: "two-wheeler",
+    bodyType: "motorcycle",
+    fuelType: "petrol",
+    transmission: "manual",
+    baseDaily: 780,
+    image: "https://images.pexels.com/photos/2519374/pexels-photo-2519374.jpeg",
+    description:
+      "Sporty street motorcycle for riders who want performance and style.",
+  },
+  {
+    label: "Maruti Suzuki Swift ZXI",
+    vehicleName: "Maruti Suzuki Swift",
+    brand: "Maruti Suzuki",
+    model: "Swift",
+    variant: "ZXI",
+    type: "four-wheeler",
+    bodyType: "hatchback",
+    fuelType: "petrol",
+    transmission: "manual",
+    baseDaily: 1600,
+    image: "https://images.pexels.com/photos/170811/pexels-photo-170811.jpeg",
+    description:
+      "Compact hatchback with easy city handling and good fuel efficiency.",
+  },
+  {
+    label: "Hyundai i20 Sportz",
+    vehicleName: "Hyundai i20",
+    brand: "Hyundai",
+    model: "i20",
+    variant: "Sportz",
+    type: "four-wheeler",
+    bodyType: "hatchback",
+    fuelType: "petrol",
+    transmission: "manual",
+    baseDaily: 1750,
+    image: "https://images.pexels.com/photos/170811/pexels-photo-170811.jpeg",
+    description:
+      "Premium hatchback for city rides, short trips and comfortable daily use.",
+  },
+  {
+    label: "Honda City VX",
+    vehicleName: "Honda City",
+    brand: "Honda",
+    model: "City",
+    variant: "VX",
+    type: "four-wheeler",
+    bodyType: "sedan",
+    fuelType: "petrol",
+    transmission: "manual",
+    baseDaily: 2400,
+    image: "https://images.pexels.com/photos/116675/pexels-photo-116675.jpeg",
+    description:
+      "Comfortable sedan for business travel, family rides and long routes.",
+  },
+  {
+    label: "Hyundai Creta SX",
+    vehicleName: "Hyundai Creta",
+    brand: "Hyundai",
+    model: "Creta",
+    variant: "SX",
+    type: "four-wheeler",
+    bodyType: "suv",
+    fuelType: "petrol",
+    transmission: "automatic",
+    baseDaily: 3200,
+    image: "https://images.pexels.com/photos/116675/pexels-photo-116675.jpeg",
+    description:
+      "Feature-rich compact SUV for family trips, business rides and touring.",
+  },
+  {
+    label: "Kia Seltos HTX",
+    vehicleName: "Kia Seltos",
+    brand: "Kia",
+    model: "Seltos",
+    variant: "HTX",
+    type: "four-wheeler",
+    bodyType: "suv",
+    fuelType: "petrol",
+    transmission: "automatic",
+    baseDaily: 3400,
+    image: "https://images.pexels.com/photos/116675/pexels-photo-116675.jpeg",
+    description:
+      "Premium SUV with strong road presence and comfortable cabin features.",
+  },
+  {
+    label: "Tata Nexon EV",
+    vehicleName: "Tata Nexon EV",
+    brand: "Tata",
+    model: "Nexon EV",
+    variant: "Empowered",
+    type: "four-wheeler",
+    bodyType: "electric-car",
+    fuelType: "electric",
+    transmission: "automatic",
+    baseDaily: 3600,
+    image: "https://images.pexels.com/photos/110844/pexels-photo-110844.jpeg",
+    description:
+      "Electric compact SUV with silent drive, low running cost and modern tech.",
+  },
+  {
+    label: "Toyota Innova Hycross",
+    vehicleName: "Toyota Innova Hycross",
+    brand: "Toyota",
+    model: "Innova Hycross",
+    variant: "VX Hybrid",
+    type: "four-wheeler",
+    bodyType: "mpv",
+    fuelType: "hybrid",
+    transmission: "automatic",
+    baseDaily: 4500,
+    image: "https://images.pexels.com/photos/116675/pexels-photo-116675.jpeg",
+    description:
+      "Spacious MPV for family trips, airport transfers and group travel.",
+  },
+  {
+    label: "Mahindra XUV700 AX7",
+    vehicleName: "Mahindra XUV700",
+    brand: "Mahindra",
+    model: "XUV700",
+    variant: "AX7",
+    type: "four-wheeler",
+    bodyType: "suv",
+    fuelType: "diesel",
+    transmission: "automatic",
+    baseDaily: 4800,
+    image: "https://images.pexels.com/photos/116675/pexels-photo-116675.jpeg",
+    description:
+      "Powerful premium SUV for long-distance trips, large families and touring.",
+  },
+  {
+    label: "Toyota Fortuner 4x2 AT",
+    vehicleName: "Toyota Fortuner",
+    brand: "Toyota",
+    model: "Fortuner",
+    variant: "4x2 AT",
+    type: "four-wheeler",
+    bodyType: "suv",
+    fuelType: "diesel",
+    transmission: "automatic",
+    baseDaily: 6200,
+    image: "https://images.pexels.com/photos/116675/pexels-photo-116675.jpeg",
+    description:
+      "Luxury SUV for premium rentals, highway touring and executive travel.",
+  },
+];
+
+const locations = ["Bhubaneswar", "Cuttack", "Puri", "Rourkela", "Sambalpur"];
+
+const colors = [
+  "White",
+  "Black",
+  "Silver",
+  "Grey",
+  "Red",
+  "Blue",
+  "Green",
+  "Yellow",
+];
+
+const randomNumber = (min, max) => {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+};
+
+const generateVehicleNumber = () => {
+  const cityCode = randomNumber(1, 30).toString().padStart(2, "0");
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const first = letters[randomNumber(0, letters.length - 1)];
+  const second = letters[randomNumber(0, letters.length - 1)];
+  const number = randomNumber(1000, 9999);
+
+  return `OD-${cityCode}-${first}${second}-${number}`;
+};
+
+const buildRandomVehicleFromPreset = (preset) => {
+  const modelYear = randomNumber(2022, 2026);
+  const priceDaily = Math.round(
+    (preset.baseDaily * randomNumber(90, 115)) / 100,
+  );
+  const priceWeekly = Math.round(priceDaily * 6);
+  const priceMonthly = Math.round(priceDaily * 20);
+  const depositAmount = Math.round(priceDaily * randomNumber(3, 6));
+
+  return {
+    vehicleName: preset.vehicleName,
+    vehicleNumber: generateVehicleNumber(),
+    brand: preset.brand,
+    model: preset.model,
+    variant: preset.variant,
+    modelYear,
+    type: preset.type,
+    bodyType: preset.bodyType,
+    fuelType: preset.fuelType,
+    transmission: preset.transmission,
+    priceDaily,
+    priceWeekly,
+    priceMonthly,
+    depositAmount,
+    location: locations[randomNumber(0, locations.length - 1)],
+    description: preset.description,
+    images: preset.image,
+    status: "available",
+    specs: {
+      color: colors[randomNumber(0, colors.length - 1)],
+      seatingCapacity:
+        preset.type === "two-wheeler" ? 2 : preset.bodyType === "mpv" ? 7 : 5,
+      mileageKmpl:
+        preset.fuelType === "electric"
+          ? null
+          : preset.type === "two-wheeler"
+            ? randomNumber(35, 55)
+            : randomNumber(12, 22),
+      batteryRangeKm:
+        preset.fuelType === "electric" ? randomNumber(120, 420) : null,
+      features:
+        preset.type === "two-wheeler"
+          ? ["Self start", "LED headlamp", "Digital console"]
+          : ["Air conditioning", "Bluetooth audio", "Rear parking camera"],
+    },
+  };
 };
 
 function OwnerDashboard() {
   const [vehicles, setVehicles] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [form, setForm] = useState(emptyVehicleForm);
+  const [presetIndex, setPresetIndex] = useState("");
+  const [generatedSpecs, setGeneratedSpecs] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  const selectedPreset = useMemo(() => {
+    if (presetIndex === "") return null;
+    return vehiclePresets[Number(presetIndex)];
+  }, [presetIndex]);
 
   const fetchOwnerData = useCallback(async () => {
     try {
@@ -72,6 +371,51 @@ function OwnerDashboard() {
 
   useAutoRefresh(fetchOwnerData, 15000);
 
+  const applyPreset = (preset = selectedPreset) => {
+    if (!preset) {
+      alert("Please choose a vehicle preset first");
+      return;
+    }
+
+    const generatedVehicle = buildRandomVehicleFromPreset(preset);
+
+    setForm({
+      vehicleName: generatedVehicle.vehicleName,
+      vehicleNumber: generatedVehicle.vehicleNumber,
+      brand: generatedVehicle.brand,
+      model: generatedVehicle.model,
+      variant: generatedVehicle.variant,
+      modelYear: generatedVehicle.modelYear,
+      type: generatedVehicle.type,
+      bodyType: generatedVehicle.bodyType,
+      fuelType: generatedVehicle.fuelType,
+      transmission: generatedVehicle.transmission,
+      priceDaily: generatedVehicle.priceDaily,
+      priceWeekly: generatedVehicle.priceWeekly,
+      priceMonthly: generatedVehicle.priceMonthly,
+      depositAmount: generatedVehicle.depositAmount,
+      location: generatedVehicle.location,
+      description: generatedVehicle.description,
+      images: generatedVehicle.images,
+      status: "available",
+    });
+
+    setGeneratedSpecs(generatedVehicle.specs);
+    setEditingId(null);
+  };
+
+  const generateRandomVehicle = () => {
+    const randomPreset =
+      vehiclePresets[randomNumber(0, vehiclePresets.length - 1)];
+
+    const index = vehiclePresets.findIndex(
+      (item) => item.label === randomPreset.label,
+    );
+
+    setPresetIndex(index.toString());
+    applyPreset(randomPreset);
+  };
+
   const handleChange = (e) => {
     setForm((prev) => ({
       ...prev,
@@ -81,7 +425,9 @@ function OwnerDashboard() {
 
   const resetForm = () => {
     setForm(emptyVehicleForm);
+    setGeneratedSpecs(null);
     setEditingId(null);
+    setPresetIndex("");
   };
 
   const buildPayload = () => {
@@ -91,12 +437,14 @@ function OwnerDashboard() {
       priceDaily: Number(form.priceDaily),
       priceWeekly: Number(form.priceWeekly),
       priceMonthly: Number(form.priceMonthly),
+      depositAmount: Number(form.depositAmount || 0),
       images: form.images
         ? form.images
             .split(",")
             .map((img) => img.trim())
             .filter(Boolean)
         : [],
+      specs: generatedSpecs || {},
     };
   };
 
@@ -140,18 +488,23 @@ function OwnerDashboard() {
       vehicleNumber: vehicle.vehicleNumber || "",
       brand: vehicle.brand || "",
       model: vehicle.model || "",
+      variant: vehicle.variant || "",
       modelYear: vehicle.modelYear || "",
       type: vehicle.type || "two-wheeler",
+      bodyType: vehicle.bodyType || "",
       fuelType: vehicle.fuelType || "petrol",
       transmission: vehicle.transmission || "manual",
       priceDaily: vehicle.priceDaily || "",
       priceWeekly: vehicle.priceWeekly || "",
       priceMonthly: vehicle.priceMonthly || "",
+      depositAmount: vehicle.depositAmount || "",
       location: vehicle.location || "",
+      description: vehicle.description || "",
       images: vehicle.images?.join(", ") || "",
       status: vehicle.status || "available",
     });
 
+    setGeneratedSpecs(vehicle.specs || null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -255,7 +608,8 @@ function OwnerDashboard() {
               </h1>
 
               <p className="mt-2 text-sm text-slate-600">
-                Manage fleet, booking approvals and vehicle status.
+                Choose a vehicle preset, auto-generate realistic details, then
+                add it to your fleet.
               </p>
             </div>
 
@@ -274,6 +628,93 @@ function OwnerDashboard() {
           </div>
         ) : (
           <>
+            <div className="mb-8 rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur-xl">
+              <h2 className="text-xl font-black text-slate-950">
+                Quick Vehicle Generator
+              </h2>
+
+              <p className="mt-2 text-sm text-slate-500">
+                Select any vehicle variant or generate a random vehicle. Details
+                like year, number, price, location and image will auto-fill.
+              </p>
+
+              <div className="mt-5 grid gap-4 md:grid-cols-[1fr_auto_auto]">
+                <select
+                  value={presetIndex}
+                  onChange={(e) => setPresetIndex(e.target.value)}
+                  className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none"
+                >
+                  <option value="">Choose vehicle variant</option>
+                  {vehiclePresets.map((preset, index) => (
+                    <option key={preset.label} value={index}>
+                      {preset.label}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  type="button"
+                  onClick={() => applyPreset()}
+                  className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-800"
+                >
+                  Use Selected
+                </button>
+
+                <button
+                  type="button"
+                  onClick={generateRandomVehicle}
+                  className="rounded-2xl border border-purple-200 bg-purple-50 px-5 py-3 text-sm font-bold text-purple-700 transition hover:bg-purple-100"
+                >
+                  Generate Random
+                </button>
+              </div>
+
+              {form.vehicleName && (
+                <div className="mt-5 grid gap-4 rounded-3xl bg-slate-50 p-4 md:grid-cols-[140px_1fr]">
+                  <img
+                    src={
+                      form.images || "https://placehold.co/500x300?text=Vehicle"
+                    }
+                    alt={form.vehicleName}
+                    className="h-28 w-full rounded-2xl object-cover"
+                  />
+
+                  <div>
+                    <h3 className="text-lg font-black text-slate-950">
+                      {form.vehicleName} {form.variant && `(${form.variant})`}
+                    </h3>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                      {form.brand} • {form.model} • {form.modelYear} •{" "}
+                      {form.location}
+                    </p>
+
+                    <p className="mt-2 text-sm text-slate-600">
+                      {form.description}
+                    </p>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-700">
+                        ₹{form.priceDaily}/day
+                      </span>
+
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-700">
+                        {form.fuelType}
+                      </span>
+
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-700">
+                        {form.transmission}
+                      </span>
+
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-700">
+                        {form.vehicleNumber}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <form
               onSubmit={submitVehicle}
               className="mb-8 rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur-xl"
@@ -320,12 +761,22 @@ function OwnerDashboard() {
                 />
 
                 <input
+                  name="variant"
+                  value={form.variant}
+                  onChange={handleChange}
+                  placeholder="Variant"
+                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none"
+                />
+
+                <input
                   name="modelYear"
                   type="number"
                   value={form.modelYear}
                   onChange={handleChange}
                   placeholder="Model year"
                   required
+                  min="2022"
+                  max="2026"
                   className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none"
                 />
 
@@ -339,6 +790,14 @@ function OwnerDashboard() {
                   <option value="four-wheeler">Four Wheeler</option>
                 </select>
 
+                <input
+                  name="bodyType"
+                  value={form.bodyType}
+                  onChange={handleChange}
+                  placeholder="Body type"
+                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none"
+                />
+
                 <select
                   name="fuelType"
                   value={form.fuelType}
@@ -349,6 +808,7 @@ function OwnerDashboard() {
                   <option value="diesel">Diesel</option>
                   <option value="electric">Electric</option>
                   <option value="cng">CNG</option>
+                  <option value="hybrid">Hybrid</option>
                 </select>
 
                 <select
@@ -367,6 +827,15 @@ function OwnerDashboard() {
                   onChange={handleChange}
                   placeholder="Location"
                   required
+                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none"
+                />
+
+                <input
+                  name="depositAmount"
+                  type="number"
+                  value={form.depositAmount}
+                  onChange={handleChange}
+                  placeholder="Deposit amount"
                   className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none"
                 />
 
@@ -404,7 +873,16 @@ function OwnerDashboard() {
                   name="images"
                   value={form.images}
                   onChange={handleChange}
-                  placeholder="Image URLs separated by comma"
+                  placeholder="Image URL"
+                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none md:col-span-3"
+                />
+
+                <textarea
+                  name="description"
+                  value={form.description}
+                  onChange={handleChange}
+                  placeholder="Vehicle description"
+                  rows="3"
                   className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none md:col-span-3"
                 />
               </div>
@@ -421,15 +899,13 @@ function OwnerDashboard() {
                       : "Add Vehicle"}
                 </button>
 
-                {editingId && (
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    className="rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-bold text-slate-800 transition hover:bg-slate-100"
-                  >
-                    Cancel Edit
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-bold text-slate-800 transition hover:bg-slate-100"
+                >
+                  Clear Form
+                </button>
               </div>
             </form>
 
@@ -481,6 +957,12 @@ function OwnerDashboard() {
                           <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-700">
                             ₹{vehicle.priceDaily}/day
                           </span>
+
+                          {vehicle.modelYear && (
+                            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-700">
+                              {vehicle.modelYear}
+                            </span>
+                          )}
                         </div>
 
                         <div className="mt-4 flex flex-wrap gap-2">

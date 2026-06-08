@@ -43,8 +43,6 @@ const vehicleSchema = new mongoose.Schema(
     modelYear: {
       type: Number,
       required: true,
-      min: 2022,
-      max: 2026,
     },
 
     type: {
@@ -55,18 +53,8 @@ const vehicleSchema = new mongoose.Schema(
 
     bodyType: {
       type: String,
-      enum: [
-        "scooter",
-        "motorcycle",
-        "electric-scooter",
-        "hatchback",
-        "sedan",
-        "suv",
-        "mpv",
-        "electric-car",
-        "luxury",
-      ],
-      default: "motorcycle",
+      default: "",
+      trim: true,
     },
 
     fuelType: {
@@ -107,12 +95,6 @@ const vehicleSchema = new mongoose.Schema(
       trim: true,
     },
 
-    city: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-
     description: {
       type: String,
       default: "",
@@ -130,13 +112,6 @@ const vehicleSchema = new mongoose.Schema(
       mileageKmpl: { type: Number, default: null },
       seatingCapacity: { type: Number, default: null },
       color: { type: String, default: "" },
-      power: { type: String, default: "" },
-      torque: { type: String, default: "" },
-      topSpeed: { type: String, default: "" },
-      bootSpace: { type: String, default: "" },
-      groundClearance: { type: String, default: "" },
-      airbags: { type: Number, default: null },
-      abs: { type: Boolean, default: false },
       features: {
         type: [String],
         default: [],
@@ -152,7 +127,7 @@ const vehicleSchema = new mongoose.Schema(
     approvalStatus: {
       type: String,
       enum: ["pending", "approved", "rejected"],
-      default: "approved",
+      default: "pending",
     },
 
     rejectionReason: {
