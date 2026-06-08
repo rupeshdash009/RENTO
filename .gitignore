@@ -41,3 +41,12 @@ coverage/
 # Temporary files
 tmp/
 temp/
+
+
+
+dist/
+build/
+FRONT-END/dist/
+
+.vscode/
+.DS_Store
