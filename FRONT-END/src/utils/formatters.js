@@ -12,6 +12,16 @@ export const formatDate = (value) => {
   });
 };
 
+export const getBookingAmount = (booking) => {
+  return Number(
+    booking?.totalPrice ??
+      booking?.totalAmount ??
+      booking?.amount ??
+      booking?.bookingAmount ??
+      0,
+  );
+};
+
 export const getStoredUser = () => {
   try {
     const raw = localStorage.getItem("user");
@@ -28,7 +38,7 @@ export const badgeClass = (status) => {
     return "border-emerald-900/60 bg-emerald-950/50 text-emerald-300";
   }
 
-  if (["pending", "unpaid", "maintenance"].includes(key)) {
+  if (["pending", "unpaid", "maintenance", "created"].includes(key)) {
     return "border-amber-900/60 bg-amber-950/50 text-amber-300";
   }
 

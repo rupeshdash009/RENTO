@@ -1,9 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
-import axios from "axios";
+import { RefreshCw, Search } from "lucide-react";
+import API from "../api/axios";
 import useAutoRefresh from "../hooks/useAutoRefresh";
 import VehicleCard from "../components/VehicleCard";
-
-const API_BASE_URL = "https://rento-backend-gmlw.onrender.com/api";
 
 function Vehicles() {
   const [vehicles, setVehicles] = useState([]);
@@ -11,6 +10,7 @@ function Vehicles() {
   const [message, setMessage] = useState("");
 
   const [filters, setFilters] = useState({
+    search: "",
     type: "",
     fuelType: "",
     location: "",
@@ -24,21 +24,20 @@ function Vehicles() {
 
       const params = {};
 
-      if (filters.type) params.type = filters.type;
-      if (filters.fuelType) params.fuelType = filters.fuelType;
-      if (filters.location) params.location = filters.location;
-      if (filters.minPrice) params.minPrice = filters.minPrice;
-      if (filters.maxPrice) params.maxPrice = filters.maxPrice;
-
-      const res = await axios.get(`${API_BASE_URL}/vehicles`, {
-        params,
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== "") {
+          params[key] = value;
+        }
       });
 
-      const data = Array.isArray(res.data) ? res.data : res.data.vehicles || [];
+      const res = await API.get("/vehicles", { params });
 
-      setVehicles(data);
+      const list = Array.isArray(res.data)
+        ? res.data
+        : res.data?.vehicles || [];
+
+      setVehicles(list);
     } catch (error) {
-      console.error("VEHICLES LOAD ERROR:", error);
       setMessage(error.response?.data?.message || "Failed to load vehicles");
     } finally {
       setLoading(false);
@@ -48,18 +47,19 @@ function Vehicles() {
   useAutoRefresh(fetchVehicles, 30000);
 
   const locations = useMemo(() => {
-    return [...new Set(vehicles.map((v) => v.location).filter(Boolean))];
+    return [...new Set(vehicles.map((item) => item.location).filter(Boolean))];
   }, [vehicles]);
 
-  const handleChange = (e) => {
+  const handleChange = (event) => {
     setFilters((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [event.target.name]: event.target.value,
     }));
   };
 
   const resetFilters = () => {
     setFilters({
+      search: "",
       type: "",
       fuelType: "",
       location: "",
@@ -69,39 +69,55 @@ function Vehicles() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8">
+    <main className="min-h-screen bg-slate-950 px-4 py-8 text-white">
       <section className="mx-auto max-w-7xl">
-        <div className="mb-8 rounded-[2rem] border border-white/70 bg-white/80 p-6 shadow-sm backdrop-blur-xl">
+        <div className="mb-8 rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6 shadow-2xl shadow-black/30 backdrop-blur-xl">
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.25em] text-slate-400">
-                RentiGo Fleet
+              <p className="text-sm font-black uppercase tracking-[0.25em] text-blue-300">
+                Rento Fleet
               </p>
 
-              <h1 className="mt-2 text-3xl font-black text-slate-950 md:text-4xl">
+              <h1 className="mt-2 text-3xl font-black text-white md:text-4xl">
                 Find your ride
               </h1>
 
-              <p className="mt-2 max-w-2xl text-sm text-slate-600">
-                Browse available two-wheelers and four-wheelers with real-time
-                availability and pricing.
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+                Browse approved two-wheelers and four-wheelers with live
+                pricing, ratings and availability.
               </p>
             </div>
 
             <button
               onClick={fetchVehicles}
-              className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-800 transition hover:bg-slate-100"
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-700 bg-slate-800 px-5 py-3 text-sm font-black text-white transition hover:bg-slate-700"
             >
+              <RefreshCw size={17} />
               Refresh
             </button>
           </div>
 
-          <div className="mt-6 grid gap-3 md:grid-cols-5">
+          <div className="mt-6 grid gap-3 md:grid-cols-6">
+            <div className="relative md:col-span-2">
+              <Search
+                size={17}
+                className="pointer-events-none absolute left-4 top-3.5 text-slate-400"
+              />
+
+              <input
+                name="search"
+                value={filters.search}
+                onChange={handleChange}
+                placeholder="Search brand, model or vehicle"
+                className="input-style pl-11"
+              />
+            </div>
+
             <select
               name="type"
               value={filters.type}
               onChange={handleChange}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none"
+              className="input-style"
             >
               <option value="">All types</option>
               <option value="two-wheeler">Two Wheeler</option>
@@ -112,22 +128,24 @@ function Vehicles() {
               name="fuelType"
               value={filters.fuelType}
               onChange={handleChange}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none"
+              className="input-style"
             >
               <option value="">All fuel</option>
               <option value="petrol">Petrol</option>
               <option value="diesel">Diesel</option>
               <option value="electric">Electric</option>
               <option value="cng">CNG</option>
+              <option value="hybrid">Hybrid</option>
             </select>
 
             <select
               name="location"
               value={filters.location}
               onChange={handleChange}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none"
+              className="input-style"
             >
               <option value="">All locations</option>
+
               {locations.map((location) => (
                 <option key={location} value={location}>
                   {location}
@@ -135,13 +153,20 @@ function Vehicles() {
               ))}
             </select>
 
+            <button
+              onClick={resetFilters}
+              className="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm font-black text-slate-200 hover:bg-slate-700"
+            >
+              Reset
+            </button>
+
             <input
               name="minPrice"
               type="number"
               value={filters.minPrice}
               onChange={handleChange}
-              placeholder="Min daily price"
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none"
+              placeholder="Min daily"
+              className="input-style"
             />
 
             <input
@@ -149,53 +174,34 @@ function Vehicles() {
               type="number"
               value={filters.maxPrice}
               onChange={handleChange}
-              placeholder="Max daily price"
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none"
+              placeholder="Max daily"
+              className="input-style"
             />
           </div>
 
-          <div className="mt-4 flex items-center justify-between gap-3">
-            <p className="text-sm text-slate-500">
-              Showing{" "}
-              <span className="font-bold text-slate-900">
-                {vehicles.length}
-              </span>{" "}
-              vehicles
-            </p>
-
-            <button
-              onClick={resetFilters}
-              className="text-sm font-bold text-slate-600 hover:text-slate-950"
-            >
-              Reset filters
-            </button>
-          </div>
+          <p className="mt-4 text-sm font-semibold text-slate-400">
+            Showing {vehicles.length} vehicles
+          </p>
         </div>
 
         {message && (
-          <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700">
+          <div className="mb-6 rounded-2xl border border-red-900/60 bg-red-950/50 p-4 text-sm font-bold text-red-300">
             {message}
           </div>
         )}
 
         {loading ? (
-          <div className="rounded-[2rem] border border-white/70 bg-white/80 p-10 text-center text-slate-500 shadow-sm">
+          <div className="rounded-[2rem] border border-slate-800 bg-slate-900 p-8 text-center text-slate-300">
             Loading vehicles...
           </div>
         ) : vehicles.length === 0 ? (
-          <div className="rounded-[2rem] border border-white/70 bg-white/80 p-10 text-center shadow-sm">
-            <h2 className="text-xl font-black text-slate-950">
-              No vehicles found
-            </h2>
-
-            <p className="mt-2 text-sm text-slate-500">
-              Try changing filters or refresh again.
-            </p>
+          <div className="rounded-[2rem] border border-slate-800 bg-slate-900 p-8 text-center text-slate-300">
+            No vehicles found. Try changing filters.
           </div>
         ) : (
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
             {vehicles.map((vehicle) => (
-              <VehicleCard key={vehicle._id || vehicle.id} vehicle={vehicle} />
+              <VehicleCard key={vehicle._id} vehicle={vehicle} />
             ))}
           </div>
         )}

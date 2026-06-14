@@ -20,12 +20,13 @@ function PaymentButton({ booking, onPaymentSuccess }) {
 
       const orderRes = await API.post(`/payments/create-order/${booking._id}`);
       const orderData = orderRes.data;
+
       const user = JSON.parse(localStorage.getItem("user") || "{}");
 
       const options = {
         key: orderData.keyId,
         amount: orderData.amount,
-        currency: orderData.currency,
+        currency: orderData.currency || "INR",
         name: "Rento",
         description: `Payment for ${
           booking.vehicle?.vehicleName || "vehicle booking"
@@ -35,6 +36,7 @@ function PaymentButton({ booking, onPaymentSuccess }) {
         prefill: {
           name: user?.name || "",
           email: user?.email || "",
+          contact: user?.phone || "",
         },
 
         notes: {
@@ -54,7 +56,7 @@ function PaymentButton({ booking, onPaymentSuccess }) {
               razorpay_signature: response.razorpay_signature,
             });
 
-            alert(verifyRes.data.message || "Payment successful");
+            alert(verifyRes.data?.message || "Payment successful");
             triggerDataRefresh();
 
             if (onPaymentSuccess) {
@@ -69,7 +71,7 @@ function PaymentButton({ booking, onPaymentSuccess }) {
 
         modal: {
           ondismiss: () => {
-            alert("Payment popup closed.");
+            setLoading(false);
           },
         },
       };
@@ -77,7 +79,7 @@ function PaymentButton({ booking, onPaymentSuccess }) {
       const razorpay = new window.Razorpay(options);
       razorpay.open();
     } catch (error) {
-      alert(error.response?.data?.message || "Payment failed");
+      alert(error.response?.data?.message || "Payment order creation failed");
     } finally {
       setLoading(false);
     }
