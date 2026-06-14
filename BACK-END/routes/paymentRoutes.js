@@ -1,7 +1,7 @@
 const express = require("express");
 
 const {
-  createPaymentOrder,
+  createOrder,
   verifyPayment,
 } = require("../controllers/paymentController");
 
@@ -13,7 +13,7 @@ router.post(
   "/create-order/:bookingId",
   protect,
   authorize("customer"),
-  createPaymentOrder,
+  createOrder,
 );
 
 router.post("/verify", protect, authorize("customer"), verifyPayment);

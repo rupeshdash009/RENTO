@@ -8,7 +8,7 @@ const paymentSchema = new mongoose.Schema(
       required: true,
     },
 
-    user: {
+    customer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
@@ -45,6 +45,7 @@ const paymentSchema = new mongoose.Schema(
     amount: {
       type: Number,
       required: true,
+      min: 1,
     },
 
     currency: {
@@ -63,9 +64,7 @@ const paymentSchema = new mongoose.Schema(
       default: {},
     },
   },
-  {
-    timestamps: true,
-  },
+  { timestamps: true },
 );
 
 module.exports =
