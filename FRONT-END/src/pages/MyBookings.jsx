@@ -31,9 +31,7 @@ function ReviewBox({ booking, onReviewSaved }) {
 
       setComment("");
 
-      if (onReviewSaved) {
-        onReviewSaved();
-      }
+      if (onReviewSaved) onReviewSaved();
     } catch (error) {
       setError(error.response?.data?.message || "Review save failed");
     } finally {
@@ -41,9 +39,7 @@ function ReviewBox({ booking, onReviewSaved }) {
     }
   };
 
-  if (booking.status !== "completed" || booking.reviewed) {
-    return null;
-  }
+  if (booking.status !== "completed") return null;
 
   return (
     <form
@@ -155,8 +151,7 @@ function MyBookings() {
               </h1>
 
               <p className="mt-2 text-sm text-slate-300">
-                Track requests, approval status, payment status, completed trips
-                and reviews.
+                Track requests, payments, completed trips and reviews.
               </p>
             </div>
 
@@ -280,9 +275,8 @@ function MyBookings() {
 
                       {amount <= 0 && canPay && (
                         <div className="mt-4 rounded-2xl border border-amber-900/60 bg-amber-950/40 p-4 text-sm font-bold text-amber-300">
-                          Amount is showing ₹0. Update backend payment
-                          controller or recreate this booking after vehicle
-                          price is added.
+                          Amount is showing ₹0. Update vehicle price or recreate
+                          booking.
                         </div>
                       )}
 

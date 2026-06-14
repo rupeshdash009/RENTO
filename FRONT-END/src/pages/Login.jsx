@@ -80,9 +80,9 @@ function Login({ expectedRole = "customer" }) {
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-16 text-white">
       <div className="mx-auto flex min-h-[70vh] max-w-7xl items-center justify-center">
-        <div className="w-full max-w-md rounded-[2rem] border border-slate-800 bg-slate-900/80 p-8 shadow-2xl shadow-black/30 backdrop-blur-xl">
+        <div className="w-full max-w-md rounded-[2rem] border border-slate-800 bg-slate-900/90 p-8 shadow-2xl shadow-black/30">
           <div className="mb-7">
-            <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-950/40">
+            <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 text-white">
               {isOwner ? <Building2 size={26} /> : <Car size={26} />}
             </div>
 
@@ -92,7 +92,7 @@ function Login({ expectedRole = "customer" }) {
 
             <p className="mt-2 text-sm leading-6 text-slate-300">
               {isOwner
-                ? "Login as rental owner to manage vehicles and bookings."
+                ? "Login as rental owner to manage vehicles, bookings and revenue."
                 : "Login to browse vehicles, book rentals and track your trips."}
             </p>
           </div>
@@ -117,7 +117,7 @@ function Login({ expectedRole = "customer" }) {
                 onChange={handleChange}
                 placeholder="Enter email"
                 required
-                className="w-full rounded-2xl border border-slate-700 bg-slate-800 px-4 py-4 text-sm font-bold text-white outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15"
+                className="input-style"
               />
             </label>
 
@@ -134,14 +134,14 @@ function Login({ expectedRole = "customer" }) {
                 onChange={handleChange}
                 placeholder="Enter password"
                 required
-                className="w-full rounded-2xl border border-slate-700 bg-slate-800 px-4 py-4 text-sm font-bold text-white outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15"
+                className="input-style"
               />
             </label>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-4 text-sm font-black text-white shadow-lg shadow-blue-950/40 transition hover:from-blue-500 hover:to-purple-500 disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-4 text-sm font-black text-white transition hover:from-blue-500 hover:to-purple-500 disabled:opacity-60"
             >
               {loading
                 ? "Logging in..."
@@ -153,8 +153,8 @@ function Login({ expectedRole = "customer" }) {
             {isOwner ? (
               <>
                 Need owner account?{" "}
-                <Link to="/staff" className="font-black text-blue-300">
-                  Go to Staff Portal
+                <Link to="/owner-register" className="font-black text-blue-300">
+                  Register owner
                 </Link>
               </>
             ) : (

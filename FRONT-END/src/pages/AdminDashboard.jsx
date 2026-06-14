@@ -1,447 +1,553 @@
-import { useCallback, useState } from "react";
-import axios from "axios";
+import { useCallback, useMemo, useState } from "react";
+import {
+  BarChart3,
+  CalendarCheck,
+  Car,
+  CheckCircle2,
+  IndianRupee,
+  RefreshCw,
+  ShieldCheck,
+  Users,
+  XCircle,
+} from "lucide-react";
+import API from "../api/axios";
+import StatCard from "../components/StatCard";
 import useAutoRefresh from "../hooks/useAutoRefresh";
-import { triggerDataRefresh } from "../utils/dataRefresh";
-
-const API_BASE_URL = "https://rento-backend-gmlw.onrender.com/api";
-
-const authConfig = () => {
-  const token = localStorage.getItem("token");
-
-  if (!token) {
-    return {};
-  }
-
-  return {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  };
-};
+import {
+  badgeClass,
+  formatDate,
+  formatPrice,
+  getBookingAmount,
+} from "../utils/formatters";
 
 function AdminDashboard() {
-  const [analytics, setAnalytics] = useState({});
+  const [stats, setStats] = useState(null);
   const [vehicles, setVehicles] = useState([]);
   const [users, setUsers] = useState([]);
-  const [owners, setOwners] = useState([]);
   const [bookings, setBookings] = useState([]);
-  const [activeTab, setActiveTab] = useState("vehicles");
+
+  const [activeTab, setActiveTab] = useState("overview");
   const [loading, setLoading] = useState(true);
 
-  const fetchAdminData = useCallback(async () => {
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const fetchDashboard = useCallback(async () => {
     try {
-      const [analyticsRes, vehiclesRes, usersRes, ownersRes, bookingsRes] =
-        await Promise.all([
-          axios.get(`${API_BASE_URL}/admin/analytics`, authConfig()),
-          axios.get(`${API_BASE_URL}/admin/vehicles`, authConfig()),
-          axios.get(`${API_BASE_URL}/admin/users`, authConfig()),
-          axios.get(`${API_BASE_URL}/admin/owners`, authConfig()),
-          axios.get(`${API_BASE_URL}/admin/bookings`, authConfig()),
-        ]);
+      setError("");
 
-      setAnalytics(analyticsRes.data || {});
+      const [statsRes, vehiclesRes, usersRes, bookingsRes] = await Promise.all([
+        API.get("/admin/stats").catch(() => ({ data: { stats: null } })),
+        API.get("/admin/vehicles"),
+        API.get("/admin/users").catch(() => ({ data: { users: [] } })),
+        API.get("/admin/bookings").catch(() => ({ data: { bookings: [] } })),
+      ]);
 
-      setVehicles(
-        Array.isArray(vehiclesRes.data)
-          ? vehiclesRes.data
-          : vehiclesRes.data.vehicles || [],
-      );
-
-      setUsers(
-        Array.isArray(usersRes.data)
-          ? usersRes.data
-          : usersRes.data.users || [],
-      );
-
-      setOwners(
-        Array.isArray(ownersRes.data)
-          ? ownersRes.data
-          : ownersRes.data.owners || [],
-      );
-
-      setBookings(
-        Array.isArray(bookingsRes.data)
-          ? bookingsRes.data
-          : bookingsRes.data.bookings || [],
-      );
+      setStats(statsRes.data?.stats || null);
+      setVehicles(vehiclesRes.data?.vehicles || vehiclesRes.data || []);
+      setUsers(usersRes.data?.users || []);
+      setBookings(bookingsRes.data?.bookings || []);
     } catch (error) {
-      console.error(error);
-      alert(error.response?.data?.message || "Failed to load admin data");
+      setError(error.response?.data?.message || "Failed to load admin panel");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useAutoRefresh(fetchAdminData, 15000);
+  useAutoRefresh(fetchDashboard, 30000);
+
+  const fallbackStats = useMemo(() => {
+    const paidBookings = bookings.filter(
+      (booking) => booking.paymentStatus === "paid",
+    );
+
+    const totalRevenue = paidBookings.reduce(
+      (sum, booking) => sum + getBookingAmount(booking),
+      0,
+    );
+
+    return {
+      totalUsers: users.length,
+      totalCustomers: users.filter((user) => user.role === "customer").length,
+      totalOwners: users.filter((user) => user.role === "owner").length,
+      totalVehicles: vehicles.length,
+      pendingVehicles: vehicles.filter(
+        (vehicle) => vehicle.approvalStatus === "pending",
+      ).length,
+      approvedVehicles: vehicles.filter(
+        (vehicle) => vehicle.approvalStatus === "approved",
+      ).length,
+      totalBookings: bookings.length,
+      paidBookings: paidBookings.length,
+      completedBookings: bookings.filter(
+        (booking) => booking.status === "completed",
+      ).length,
+      totalRevenue,
+    };
+  }, [vehicles, users, bookings]);
+
+  const dashboardStats = stats || fallbackStats;
 
   const approveVehicle = async (vehicleId) => {
     try {
-      await axios.put(
-        `${API_BASE_URL}/admin/vehicles/${vehicleId}/approve`,
-        {},
-        authConfig(),
-      );
+      setMessage("");
+      setError("");
 
-      triggerDataRefresh();
-      await fetchAdminData();
-      alert("Vehicle approved");
+      await API.put(`/admin/vehicles/${vehicleId}/approve`);
+      setMessage("Vehicle approved successfully.");
+      fetchDashboard();
     } catch (error) {
-      alert(error.response?.data?.message || "Failed to approve vehicle");
+      setError(error.response?.data?.message || "Vehicle approval failed");
     }
   };
 
   const rejectVehicle = async (vehicleId) => {
-    const rejectionReason = window.prompt("Enter rejection reason:");
-
-    if (!rejectionReason) return;
+    const reason =
+      window.prompt("Enter rejection reason", "Rejected by admin") ||
+      "Rejected by admin";
 
     try {
-      await axios.put(
-        `${API_BASE_URL}/admin/vehicles/${vehicleId}/reject`,
-        { rejectionReason },
-        authConfig(),
-      );
+      setMessage("");
+      setError("");
 
-      triggerDataRefresh();
-      await fetchAdminData();
-      alert("Vehicle rejected");
+      await API.put(`/admin/vehicles/${vehicleId}/reject`, {
+        rejectionReason: reason,
+      });
+
+      setMessage("Vehicle rejected successfully.");
+      fetchDashboard();
     } catch (error) {
-      alert(error.response?.data?.message || "Failed to reject vehicle");
+      setError(error.response?.data?.message || "Vehicle rejection failed");
     }
   };
 
   const toggleUserStatus = async (userId) => {
+    if (!window.confirm("Change this user's active status?")) return;
+
     try {
-      await axios.put(
-        `${API_BASE_URL}/admin/users/${userId}/status`,
-        {},
-        authConfig(),
-      );
+      setMessage("");
+      setError("");
 
-      triggerDataRefresh();
-      await fetchAdminData();
+      await API.put(`/admin/users/${userId}/toggle-status`);
+      setMessage("User status updated successfully.");
+      fetchDashboard();
     } catch (error) {
-      alert(error.response?.data?.message || "Failed to update user status");
+      setError(error.response?.data?.message || "User status update failed");
     }
   };
 
-  const badgeClass = (status) => {
-    if (status === "approved" || status === "available" || status === "paid") {
-      return "bg-emerald-50 text-emerald-700 border-emerald-200";
-    }
+  const approveBooking = async (bookingId) => {
+    try {
+      setMessage("");
+      setError("");
 
-    if (status === "pending" || status === "unpaid") {
-      return "bg-amber-50 text-amber-700 border-amber-200";
+      await API.put(`/bookings/${bookingId}/approve`);
+      setMessage("Booking approved successfully.");
+      fetchDashboard();
+    } catch (error) {
+      setError(error.response?.data?.message || "Booking approval failed");
     }
-
-    if (
-      status === "rejected" ||
-      status === "cancelled" ||
-      status === "inactive" ||
-      status === "failed"
-    ) {
-      return "bg-red-50 text-red-700 border-red-200";
-    }
-
-    return "bg-slate-50 text-slate-700 border-slate-200";
   };
 
-  const cards = [
-    {
-      label: "Users",
-      value: analytics.totalUsers ?? users.length,
-    },
-    {
-      label: "Owners",
-      value: analytics.totalOwners ?? owners.length,
-    },
-    {
-      label: "Vehicles",
-      value: analytics.totalVehicles ?? vehicles.length,
-    },
-    {
-      label: "Bookings",
-      value: analytics.totalBookings ?? bookings.length,
-    },
+  const rejectBooking = async (bookingId) => {
+    const reason =
+      window.prompt("Enter rejection reason", "Rejected by admin") ||
+      "Rejected by admin";
+
+    try {
+      setMessage("");
+      setError("");
+
+      await API.put(`/bookings/${bookingId}/reject`, {
+        rejectionReason: reason,
+      });
+
+      setMessage("Booking rejected successfully.");
+      fetchDashboard();
+    } catch (error) {
+      setError(error.response?.data?.message || "Booking rejection failed");
+    }
+  };
+
+  const completeBooking = async (bookingId) => {
+    if (!window.confirm("Mark this paid booking as completed?")) return;
+
+    try {
+      setMessage("");
+      setError("");
+
+      await API.put(`/bookings/${bookingId}/complete`);
+      setMessage("Booking marked as completed.");
+      fetchDashboard();
+    } catch (error) {
+      setError(error.response?.data?.message || "Booking completion failed");
+    }
+  };
+
+  const tabs = [
+    { key: "overview", label: "Overview" },
+    { key: "vehicles", label: "Vehicles" },
+    { key: "users", label: "Users" },
+    { key: "bookings", label: "Bookings" },
   ];
 
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-slate-950 px-4 py-10 text-white">
+        <div className="mx-auto max-w-7xl rounded-[2rem] border border-slate-800 bg-slate-900 p-8 text-center text-slate-300">
+          Loading admin dashboard...
+        </div>
+      </main>
+    );
+  }
+
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8">
-      <section className="mx-auto max-w-7xl">
-        <div className="mb-8 rounded-[2rem] border border-white/70 bg-white/80 p-6 shadow-sm backdrop-blur-xl">
+    <main className="min-h-screen bg-slate-950 px-4 py-8 text-white">
+      <div className="mx-auto max-w-7xl space-y-6">
+        <section className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6 shadow-2xl shadow-black/30">
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.25em] text-slate-400">
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-red-300">
                 Admin Panel
               </p>
-              <h1 className="mt-2 text-3xl font-black text-slate-950">
+
+              <h1 className="mt-2 text-3xl font-black text-white">
                 Admin Dashboard
               </h1>
-              <p className="mt-2 text-sm text-slate-600">
-                Manage users, owners, vehicle approvals and bookings.
+
+              <p className="mt-2 text-sm text-slate-300">
+                Manage vehicles, users, bookings, approvals and revenue.
               </p>
             </div>
 
             <button
-              onClick={fetchAdminData}
-              className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-800 transition hover:bg-slate-100"
+              onClick={fetchDashboard}
+              className="inline-flex items-center gap-2 rounded-2xl bg-slate-800 px-5 py-3 text-sm font-black text-white hover:bg-slate-700"
             >
+              <RefreshCw size={17} />
               Refresh
             </button>
           </div>
-        </div>
 
-        {loading ? (
-          <div className="rounded-[2rem] border border-white/70 bg-white/80 p-10 text-center text-slate-500 shadow-sm">
-            Loading admin dashboard...
+          <div className="mt-6 flex flex-wrap gap-2">
+            {tabs.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`rounded-2xl px-5 py-3 text-sm font-black transition ${
+                  activeTab === tab.key
+                    ? "bg-red-600 text-white"
+                    : "border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
-        ) : (
-          <>
-            <div className="mb-8 grid gap-4 md:grid-cols-4">
-              {cards.map((card) => (
-                <div
-                  key={card.label}
-                  className="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur-xl"
-                >
-                  <p className="text-sm font-bold text-slate-500">
-                    {card.label}
-                  </p>
-                  <h2 className="mt-2 text-3xl font-black text-slate-950">
-                    {card.value}
-                  </h2>
-                </div>
-              ))}
-            </div>
+        </section>
 
-            <div className="mb-6 flex flex-wrap gap-3">
-              {["vehicles", "users", "owners", "bookings"].map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`rounded-2xl px-5 py-3 text-sm font-bold capitalize transition ${
-                    activeTab === tab
-                      ? "bg-slate-950 text-white"
-                      : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-
-            {activeTab === "vehicles" && (
-              <section className="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur-xl">
-                <h2 className="text-xl font-black text-slate-950">
-                  Vehicle Listings
-                </h2>
-
-                <div className="mt-5 space-y-4">
-                  {vehicles.length === 0 ? (
-                    <p className="text-sm text-slate-500">No vehicles found.</p>
-                  ) : (
-                    vehicles.map((vehicle) => (
-                      <div
-                        key={vehicle._id}
-                        className="rounded-3xl border border-slate-100 bg-slate-50 p-4"
-                      >
-                        <div className="flex flex-col justify-between gap-4 md:flex-row">
-                          <div>
-                            <h3 className="font-black text-slate-950">
-                              {vehicle.vehicleName}
-                            </h3>
-                            <p className="text-sm text-slate-500">
-                              {vehicle.vehicleNumber} • {vehicle.brand}{" "}
-                              {vehicle.model}
-                            </p>
-                            <p className="mt-1 text-sm text-slate-500">
-                              Owner: {vehicle.owner?.name || "N/A"} •{" "}
-                              {vehicle.location}
-                            </p>
-
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              <span
-                                className={`rounded-full border px-3 py-1 text-xs font-bold capitalize ${badgeClass(
-                                  vehicle.approvalStatus,
-                                )}`}
-                              >
-                                Approval: {vehicle.approvalStatus}
-                              </span>
-
-                              <span
-                                className={`rounded-full border px-3 py-1 text-xs font-bold capitalize ${badgeClass(
-                                  vehicle.status,
-                                )}`}
-                              >
-                                Status: {vehicle.status}
-                              </span>
-                            </div>
-                          </div>
-
-                          {vehicle.approvalStatus === "pending" && (
-                            <div className="flex h-fit gap-2">
-                              <button
-                                onClick={() => approveVehicle(vehicle._id)}
-                                className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700"
-                              >
-                                Approve
-                              </button>
-
-                              <button
-                                onClick={() => rejectVehicle(vehicle._id)}
-                                className="rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700"
-                              >
-                                Reject
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </section>
-            )}
-
-            {activeTab === "users" && (
-              <section className="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur-xl">
-                <h2 className="text-xl font-black text-slate-950">Customers</h2>
-
-                <div className="mt-5 space-y-4">
-                  {users.map((user) => (
-                    <div
-                      key={user._id}
-                      className="flex flex-col justify-between gap-3 rounded-3xl border border-slate-100 bg-slate-50 p-4 md:flex-row md:items-center"
-                    >
-                      <div>
-                        <h3 className="font-black text-slate-950">
-                          {user.name}
-                        </h3>
-                        <p className="text-sm text-slate-500">{user.email}</p>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <span
-                          className={`rounded-full border px-3 py-1 text-xs font-bold ${
-                            user.isActive
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                              : "border-red-200 bg-red-50 text-red-700"
-                          }`}
-                        >
-                          {user.isActive ? "Active" : "Inactive"}
-                        </span>
-
-                        <button
-                          onClick={() => toggleUserStatus(user._id)}
-                          className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-800 hover:bg-slate-100"
-                        >
-                          Toggle
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {activeTab === "owners" && (
-              <section className="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur-xl">
-                <h2 className="text-xl font-black text-slate-950">Owners</h2>
-
-                <div className="mt-5 space-y-4">
-                  {owners.map((owner) => (
-                    <div
-                      key={owner._id}
-                      className="flex flex-col justify-between gap-3 rounded-3xl border border-slate-100 bg-slate-50 p-4 md:flex-row md:items-center"
-                    >
-                      <div>
-                        <h3 className="font-black text-slate-950">
-                          {owner.name}
-                        </h3>
-                        <p className="text-sm text-slate-500">{owner.email}</p>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <span
-                          className={`rounded-full border px-3 py-1 text-xs font-bold ${
-                            owner.isActive
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                              : "border-red-200 bg-red-50 text-red-700"
-                          }`}
-                        >
-                          {owner.isActive ? "Active" : "Inactive"}
-                        </span>
-
-                        <button
-                          onClick={() => toggleUserStatus(owner._id)}
-                          className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-800 hover:bg-slate-100"
-                        >
-                          Toggle
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {activeTab === "bookings" && (
-              <section className="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-sm backdrop-blur-xl">
-                <h2 className="text-xl font-black text-slate-950">
-                  All Bookings
-                </h2>
-
-                <div className="mt-5 space-y-4">
-                  {bookings.length === 0 ? (
-                    <p className="text-sm text-slate-500">No bookings found.</p>
-                  ) : (
-                    bookings.map((booking) => (
-                      <div
-                        key={booking._id}
-                        className="rounded-3xl border border-slate-100 bg-slate-50 p-4"
-                      >
-                        <div className="flex flex-col justify-between gap-3 md:flex-row">
-                          <div>
-                            <h3 className="font-black text-slate-950">
-                              {booking.vehicle?.vehicleName || "Vehicle"}
-                            </h3>
-
-                            <p className="text-sm text-slate-500">
-                              Customer: {booking.user?.name || "N/A"} • Owner:{" "}
-                              {booking.owner?.name || "N/A"}
-                            </p>
-
-                            <p className="mt-1 text-sm text-slate-500">
-                              ₹{booking.totalAmount} • {booking.rentalPlan}
-                            </p>
-                          </div>
-
-                          <div className="flex flex-wrap gap-2">
-                            <span
-                              className={`h-fit rounded-full border px-3 py-1 text-xs font-bold capitalize ${badgeClass(
-                                booking.status,
-                              )}`}
-                            >
-                              {booking.status}
-                            </span>
-
-                            <span
-                              className={`h-fit rounded-full border px-3 py-1 text-xs font-bold capitalize ${badgeClass(
-                                booking.paymentStatus,
-                              )}`}
-                            >
-                              {booking.paymentStatus || "unpaid"}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </section>
-            )}
-          </>
+        {(error || message) && (
+          <div
+            className={`rounded-2xl border p-4 text-sm font-bold ${
+              error
+                ? "border-red-900/60 bg-red-950/50 text-red-300"
+                : "border-emerald-900/60 bg-emerald-950/50 text-emerald-300"
+            }`}
+          >
+            {error || message}
+          </div>
         )}
-      </section>
+
+        {activeTab === "overview" && (
+          <section className="space-y-6">
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              <StatCard
+                title="Total Revenue"
+                value={formatPrice(dashboardStats.totalRevenue)}
+                icon={<IndianRupee size={24} />}
+              />
+
+              <StatCard
+                title="Total Users"
+                value={dashboardStats.totalUsers}
+                icon={<Users size={24} />}
+              />
+
+              <StatCard
+                title="Total Vehicles"
+                value={dashboardStats.totalVehicles}
+                icon={<Car size={24} />}
+              />
+
+              <StatCard
+                title="Total Bookings"
+                value={dashboardStats.totalBookings}
+                icon={<CalendarCheck size={24} />}
+              />
+            </div>
+
+            <div className="grid gap-5 md:grid-cols-3">
+              <div className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6">
+                <ShieldCheck className="mb-4 text-emerald-300" />
+                <p className="text-sm text-slate-400">Approved vehicles</p>
+                <h3 className="mt-1 text-4xl font-black text-white">
+                  {dashboardStats.approvedVehicles}
+                </h3>
+              </div>
+
+              <div className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6">
+                <BarChart3 className="mb-4 text-amber-300" />
+                <p className="text-sm text-slate-400">Pending vehicles</p>
+                <h3 className="mt-1 text-4xl font-black text-white">
+                  {dashboardStats.pendingVehicles}
+                </h3>
+              </div>
+
+              <div className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6">
+                <CheckCircle2 className="mb-4 text-blue-300" />
+                <p className="text-sm text-slate-400">Completed bookings</p>
+                <h3 className="mt-1 text-4xl font-black text-white">
+                  {dashboardStats.completedBookings}
+                </h3>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {activeTab === "vehicles" && (
+          <section className="space-y-5">
+            {vehicles.length === 0 ? (
+              <div className="rounded-[2rem] border border-slate-800 bg-slate-900 p-8 text-center text-slate-300">
+                No vehicles found.
+              </div>
+            ) : (
+              vehicles.map((vehicle) => (
+                <article
+                  key={vehicle._id}
+                  className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-5 shadow-xl shadow-black/20"
+                >
+                  <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+                    <div>
+                      <h2 className="text-2xl font-black text-white">
+                        {vehicle.vehicleName}
+                      </h2>
+
+                      <p className="mt-1 text-sm text-slate-400">
+                        {vehicle.brand} {vehicle.model} •{" "}
+                        {vehicle.vehicleNumber}
+                      </p>
+
+                      <p className="mt-1 text-sm text-slate-400">
+                        Owner: {vehicle.owner?.name || "Owner"} •{" "}
+                        {vehicle.owner?.email || "No email"}
+                      </p>
+
+                      {vehicle.rejectionReason && (
+                        <p className="mt-2 text-sm font-bold text-red-300">
+                          Reason: {vehicle.rejectionReason}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      <span
+                        className={`rounded-full border px-3 py-1 text-xs font-black capitalize ${badgeClass(
+                          vehicle.approvalStatus,
+                        )}`}
+                      >
+                        {vehicle.approvalStatus}
+                      </span>
+
+                      <span
+                        className={`rounded-full border px-3 py-1 text-xs font-black capitalize ${badgeClass(
+                          vehicle.status,
+                        )}`}
+                      >
+                        {vehicle.status}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    {vehicle.approvalStatus !== "approved" && (
+                      <button
+                        onClick={() => approveVehicle(vehicle._id)}
+                        className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white hover:bg-emerald-500"
+                      >
+                        <CheckCircle2 size={17} />
+                        Approve
+                      </button>
+                    )}
+
+                    {vehicle.approvalStatus !== "rejected" && (
+                      <button
+                        onClick={() => rejectVehicle(vehicle._id)}
+                        className="inline-flex items-center gap-2 rounded-2xl bg-red-950/60 px-5 py-3 text-sm font-black text-red-300 hover:bg-red-950"
+                      >
+                        <XCircle size={17} />
+                        Reject
+                      </button>
+                    )}
+                  </div>
+                </article>
+              ))
+            )}
+          </section>
+        )}
+
+        {activeTab === "users" && (
+          <section className="space-y-4">
+            {users.length === 0 ? (
+              <div className="rounded-[2rem] border border-slate-800 bg-slate-900 p-8 text-center text-slate-300">
+                No users found.
+              </div>
+            ) : (
+              users.map((user) => (
+                <article
+                  key={user._id}
+                  className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-5 shadow-xl shadow-black/20"
+                >
+                  <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+                    <div>
+                      <h2 className="text-xl font-black text-white">
+                        {user.name}
+                      </h2>
+
+                      <p className="mt-1 text-sm text-slate-400">
+                        {user.email} • {user.phone || "No phone"}
+                      </p>
+
+                      <p className="mt-1 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+                        {user.role}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-3">
+                      <span
+                        className={`rounded-full border px-3 py-1 text-xs font-black capitalize ${badgeClass(
+                          user.isActive === false ? "inactive" : "active",
+                        )}`}
+                      >
+                        {user.isActive === false ? "inactive" : "active"}
+                      </span>
+
+                      <button
+                        onClick={() => toggleUserStatus(user._id)}
+                        className="rounded-2xl border border-slate-700 bg-slate-800 px-5 py-3 text-sm font-black text-white hover:bg-slate-700"
+                      >
+                        {user.isActive === false ? "Activate" : "Deactivate"}
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              ))
+            )}
+          </section>
+        )}
+
+        {activeTab === "bookings" && (
+          <section className="space-y-5">
+            {bookings.length === 0 ? (
+              <div className="rounded-[2rem] border border-slate-800 bg-slate-900 p-8 text-center text-slate-300">
+                No bookings found.
+              </div>
+            ) : (
+              bookings.map((booking) => {
+                const amount = getBookingAmount(booking);
+                const vehicle = booking.vehicle || {};
+                const customer = booking.customer || {};
+                const owner = booking.owner || {};
+
+                return (
+                  <article
+                    key={booking._id}
+                    className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-5 shadow-xl shadow-black/20"
+                  >
+                    <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+                      <div>
+                        <h2 className="text-2xl font-black text-white">
+                          {vehicle.vehicleName || "Vehicle"}
+                        </h2>
+
+                        <p className="mt-1 text-sm text-slate-400">
+                          Customer: {customer.name || "Customer"} •{" "}
+                          {customer.email || "No email"}
+                        </p>
+
+                        <p className="mt-1 text-sm text-slate-400">
+                          Owner: {owner.name || "Owner"} •{" "}
+                          {owner.email || "No email"}
+                        </p>
+
+                        <p className="mt-2 text-sm text-slate-300">
+                          {formatDate(booking.startDate)} →{" "}
+                          {formatDate(booking.endDate)} •{" "}
+                          {booking.rentalPlan || "daily"}
+                        </p>
+
+                        <p className="mt-2 text-xl font-black text-white">
+                          {formatPrice(amount)}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <span
+                          className={`rounded-full border px-3 py-1 text-xs font-black capitalize ${badgeClass(
+                            booking.status,
+                          )}`}
+                        >
+                          {booking.status}
+                        </span>
+
+                        <span
+                          className={`rounded-full border px-3 py-1 text-xs font-black capitalize ${badgeClass(
+                            booking.paymentStatus,
+                          )}`}
+                        >
+                          {booking.paymentStatus}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 flex flex-wrap gap-3">
+                      {booking.status === "pending" && (
+                        <>
+                          <button
+                            onClick={() => approveBooking(booking._id)}
+                            className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white hover:bg-emerald-500"
+                          >
+                            <CheckCircle2 size={17} />
+                            Approve
+                          </button>
+
+                          <button
+                            onClick={() => rejectBooking(booking._id)}
+                            className="inline-flex items-center gap-2 rounded-2xl bg-red-950/60 px-5 py-3 text-sm font-black text-red-300 hover:bg-red-950"
+                          >
+                            <XCircle size={17} />
+                            Reject
+                          </button>
+                        </>
+                      )}
+
+                      {booking.status === "approved" &&
+                        booking.paymentStatus === "paid" && (
+                          <button
+                            onClick={() => completeBooking(booking._id)}
+                            className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-black text-white hover:bg-blue-500"
+                          >
+                            <CalendarCheck size={17} />
+                            Mark Completed
+                          </button>
+                        )}
+                    </div>
+                  </article>
+                );
+              })
+            )}
+          </section>
+        )}
+      </div>
     </main>
   );
 }

@@ -99,7 +99,6 @@ div {
   background-color: #1e293b !important;
 }
 
-/* FORCE ALL CARDS/PANELS DARK */
 [class*="bg-white/"],
 [class*="bg-slate-50/"],
 [class*="bg-gray-50/"],
@@ -151,7 +150,6 @@ div {
   color: #94a3b8 !important;
 }
 
-/* KEEP IMPORTANT BUTTON TEXT READABLE */
 .bg-blue-600,
 .bg-purple-600,
 .bg-indigo-600,
@@ -399,7 +397,6 @@ tr:hover {
   transform: translateY(-1px);
 }
 
-/* IMAGES */
 img {
   filter: saturate(0.95) contrast(1.02);
 }

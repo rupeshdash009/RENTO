@@ -21,10 +21,6 @@ function VehicleDetails() {
 
   const [vehicle, setVehicle] = useState(null);
   const [reviews, setReviews] = useState([]);
-  const [reviewSummary, setReviewSummary] = useState({
-    count: 0,
-    averageRating: 0,
-  });
   const [unavailableDates, setUnavailableDates] = useState([]);
 
   const [loading, setLoading] = useState(true);
@@ -38,30 +34,6 @@ function VehicleDetails() {
     rentalPlan: "daily",
   });
 
-  const fetchUnavailableDates = async (vehicleId, vehicleData) => {
-    try {
-      const res = await API.get(
-        `/bookings/vehicle/${vehicleId}/unavailable-dates`,
-      );
-
-      return res.data?.unavailableDates || res.data?.unavailable || [];
-    } catch {
-      try {
-        const fallbackRes = await API.get(
-          `/bookings/vehicle/${vehicleId}/unavailable`,
-        );
-
-        return (
-          fallbackRes.data?.unavailableDates ||
-          fallbackRes.data?.unavailable ||
-          []
-        );
-      } catch {
-        return vehicleData?.unavailableDates || [];
-      }
-    }
-  };
-
   const fetchDetails = async () => {
     try {
       setLoading(true);
@@ -70,25 +42,19 @@ function VehicleDetails() {
       const vehicleRes = await API.get(`/vehicles/${id}`);
       const vehicleData = vehicleRes.data?.vehicle || vehicleRes.data;
 
-      const [reviewsRes, unavailableList] = await Promise.all([
-        API.get(`/reviews/vehicle/${id}`).catch(() => ({ data: {} })),
-        fetchUnavailableDates(id, vehicleData),
-      ]);
+      const reviewsRes = await API.get(`/reviews/vehicle/${id}`).catch(() => ({
+        data: { reviews: [] },
+      }));
 
-      const reviewList = reviewsRes.data?.reviews || [];
+      const unavailableRes = await API.get(
+        `/bookings/vehicle/${id}/unavailable-dates`,
+      ).catch(() => ({
+        data: { unavailableDates: [] },
+      }));
 
       setVehicle(vehicleData);
-      setReviews(reviewList);
-      setReviewSummary({
-        count:
-          reviewsRes.data?.count ??
-          vehicleData?.reviewCount ??
-          reviewList.length ??
-          0,
-        averageRating:
-          reviewsRes.data?.averageRating ?? vehicleData?.averageRating ?? 0,
-      });
-      setUnavailableDates(unavailableList);
+      setReviews(reviewsRes.data?.reviews || []);
+      setUnavailableDates(unavailableRes.data?.unavailableDates || []);
     } catch (error) {
       setError(error.response?.data?.message || "Vehicle not found");
     } finally {
@@ -97,9 +63,7 @@ function VehicleDetails() {
   };
 
   useEffect(() => {
-    if (id) {
-      fetchDetails();
-    }
+    if (id) fetchDetails();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -108,9 +72,7 @@ function VehicleDetails() {
     : vehicle?.images;
 
   const totalEstimate = useMemo(() => {
-    if (!vehicle || !bookingForm.startDate || !bookingForm.endDate) {
-      return 0;
-    }
+    if (!vehicle || !bookingForm.startDate || !bookingForm.endDate) return 0;
 
     const start = new Date(bookingForm.startDate);
     const end = new Date(bookingForm.endDate);
@@ -264,12 +226,12 @@ function VehicleDetails() {
                   <div className="flex items-center gap-2 text-amber-300">
                     <Star size={18} className="fill-amber-400 text-amber-400" />
                     <span className="text-lg font-black">
-                      {reviewSummary.averageRating || 0}
+                      {vehicle.averageRating || 0}
                     </span>
                   </div>
 
                   <p className="mt-1 text-xs text-slate-400">
-                    {reviewSummary.count || 0} reviews
+                    {vehicle.reviewCount || reviews.length || 0} reviews
                   </p>
                 </div>
               </div>
@@ -332,7 +294,7 @@ function VehicleDetails() {
                   </p>
 
                   <p className="rounded-2xl bg-slate-900 p-3 text-sm text-slate-300">
-                    Mileage:{" "}
+                    Mileage/Range:{" "}
                     <span className="font-black text-white">
                       {specs.mileageKmpl || specs.batteryRangeKm || "—"}
                     </span>
@@ -525,7 +487,7 @@ function VehicleDetails() {
                   </p>
 
                   <p className="mt-3 text-xs font-bold text-slate-500">
-                    — {review.customer?.name || review.user?.name || "Customer"}
+                    — {review.customer?.name || "Customer"}
                   </p>
                 </div>
               ))

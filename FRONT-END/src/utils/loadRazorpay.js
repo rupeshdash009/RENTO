@@ -1,10 +1,6 @@
 const loadRazorpayScript = () => {
   return new Promise((resolve) => {
-    const existingScript = document.querySelector(
-      'script[src="https://checkout.razorpay.com/v1/checkout.js"]',
-    );
-
-    if (existingScript) {
+    if (window.Razorpay) {
       resolve(true);
       return;
     }

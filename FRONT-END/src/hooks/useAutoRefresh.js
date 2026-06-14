@@ -1,45 +1,23 @@
 import { useEffect } from "react";
-import { listenDataRefresh } from "../utils/dataRefresh";
+import { subscribeDataRefresh } from "../utils/dataRefresh";
 
-const useAutoRefresh = (fetchFunction, intervalMs = 0) => {
+function useAutoRefresh(callback, interval = 30000) {
   useEffect(() => {
-    if (!fetchFunction) return;
+    if (typeof callback !== "function") return undefined;
 
-    fetchFunction();
+    callback();
 
-    const removeRefreshListener = listenDataRefresh(fetchFunction);
+    const intervalId = setInterval(() => {
+      callback();
+    }, interval);
 
-    const handleFocus = () => {
-      fetchFunction();
-    };
-
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        fetchFunction();
-      }
-    };
-
-    window.addEventListener("focus", handleFocus);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    let intervalId = null;
-
-    if (intervalMs > 0) {
-      intervalId = setInterval(() => {
-        fetchFunction();
-      }, intervalMs);
-    }
+    const unsubscribe = subscribeDataRefresh(callback);
 
     return () => {
-      removeRefreshListener();
-      window.removeEventListener("focus", handleFocus);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
+      clearInterval(intervalId);
+      unsubscribe();
     };
-  }, [fetchFunction, intervalMs]);
-};
+  }, [callback, interval]);
+}
 
 export default useAutoRefresh;

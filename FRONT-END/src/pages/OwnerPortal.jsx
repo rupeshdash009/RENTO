@@ -1,82 +1,62 @@
 import { Link } from "react-router-dom";
-import { Building2, LogIn, UserPlus, ShieldCheck } from "lucide-react";
+import { Building2, ShieldCheck, UserPlus } from "lucide-react";
 
 function OwnerPortal() {
   return (
-    <section className="mx-auto flex min-h-[80vh] max-w-7xl items-center justify-center px-4">
-      <div className="glass w-full max-w-5xl rounded-[2rem] p-8">
-        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 text-white">
-          <Building2 size={32} />
-        </div>
+    <main className="min-h-screen bg-slate-950 px-4 py-16 text-white">
+      <section className="mx-auto max-w-7xl">
+        <div className="mb-10 rounded-[2rem] border border-slate-800 bg-slate-900/90 p-8 text-center shadow-2xl shadow-black/30">
+          <p className="text-sm font-black uppercase tracking-[0.25em] text-blue-300">
+            Staff Portal
+          </p>
 
-        <div className="text-center">
-          <h1 className="text-4xl font-black text-slate-950">
-            Rental Owner Portal
+          <h1 className="mt-3 text-4xl font-black text-white md:text-6xl">
+            Manage rentals with Rento
           </h1>
 
-          <p className="mx-auto mt-3 max-w-xl text-slate-500">
-            This area is for rental owners and platform admins. Owners can
-            manage vehicles and booking requests. Admins can approve listings,
-            users, bookings, and reports.
+          <p className="mx-auto mt-4 max-w-2xl text-slate-300">
+            Owners can list vehicles, manage bookings, complete trips and track
+            revenue. Admins can approve vehicles and manage the platform.
           </p>
         </div>
 
-        <div className="mt-8 grid gap-5 md:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-3">
           <Link
             to="/owner-login"
-            className="rounded-3xl bg-white p-6 text-center shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
+            className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-8 shadow-xl shadow-black/20 transition hover:-translate-y-1 hover:border-blue-800"
           >
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
-              <LogIn />
-            </div>
-
-            <h2 className="text-2xl font-black text-slate-950">Owner Login</h2>
-
-            <p className="mt-2 text-sm text-slate-500">
-              Already have an owner account? Login and manage your fleet.
+            <Building2 className="mb-5 text-blue-300" size={42} />
+            <h2 className="text-2xl font-black text-white">Owner Login</h2>
+            <p className="mt-3 text-sm leading-6 text-slate-300">
+              Manage your fleet, booking requests, vehicle status and revenue.
             </p>
           </Link>
 
           <Link
             to="/owner-register"
-            className="rounded-3xl bg-white p-6 text-center shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
+            className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-8 shadow-xl shadow-black/20 transition hover:-translate-y-1 hover:border-purple-800"
           >
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-50 text-purple-700">
-              <UserPlus />
-            </div>
-
-            <h2 className="text-2xl font-black text-slate-950">
-              Owner Register
-            </h2>
-
-            <p className="mt-2 text-sm text-slate-500">
-              New rental agency? Create an owner account and add vehicles.
+            <UserPlus className="mb-5 text-purple-300" size={42} />
+            <h2 className="text-2xl font-black text-white">Owner Register</h2>
+            <p className="mt-3 text-sm leading-6 text-slate-300">
+              Create an owner account and start listing your rental vehicles.
             </p>
           </Link>
 
           <Link
             to="/admin-login"
-            className="rounded-3xl bg-white p-6 text-center shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
+            className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-8 shadow-xl shadow-black/20 transition hover:-translate-y-1 hover:border-red-800"
           >
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
-              <ShieldCheck />
-            </div>
-
-            <h2 className="text-2xl font-black text-slate-950">Admin Login</h2>
-
-            <p className="mt-2 text-sm text-slate-500">
-              Platform admin access for approvals, users, bookings and reports.
+            <ShieldCheck className="mb-5 text-red-300" size={42} />
+            <h2 className="text-2xl font-black text-white">Admin Login</h2>
+            <p className="mt-3 text-sm leading-6 text-slate-300">
+              Approve vehicles, manage users, monitor bookings and platform
+              revenue.
             </p>
           </Link>
         </div>
-
-        <div className="mt-8 text-center">
-          <Link to="/" className="font-bold text-blue-700">
-            Back to customer website
-          </Link>
-        </div>
-      </div>
-    </section>
+      </section>
+    </main>
   );
 }
 

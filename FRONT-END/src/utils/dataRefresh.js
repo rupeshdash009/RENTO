@@ -1,34 +1,13 @@
-export const DATA_REFRESH_EVENT = "rentigo:data-refresh";
-export const DATA_REFRESH_STORAGE_KEY = "rentigo:data-refresh-time";
+export const DATA_REFRESH_EVENT = "rento-data-refresh";
 
 export const triggerDataRefresh = () => {
-  const refreshTime = Date.now().toString();
-
-  window.dispatchEvent(
-    new CustomEvent(DATA_REFRESH_EVENT, {
-      detail: { refreshTime },
-    }),
-  );
-
-  localStorage.setItem(DATA_REFRESH_STORAGE_KEY, refreshTime);
+  window.dispatchEvent(new Event(DATA_REFRESH_EVENT));
 };
 
-export const listenDataRefresh = (callback) => {
-  const handleWindowRefresh = () => {
-    callback();
-  };
-
-  const handleStorageRefresh = (event) => {
-    if (event.key === DATA_REFRESH_STORAGE_KEY) {
-      callback();
-    }
-  };
-
-  window.addEventListener(DATA_REFRESH_EVENT, handleWindowRefresh);
-  window.addEventListener("storage", handleStorageRefresh);
+export const subscribeDataRefresh = (callback) => {
+  window.addEventListener(DATA_REFRESH_EVENT, callback);
 
   return () => {
-    window.removeEventListener(DATA_REFRESH_EVENT, handleWindowRefresh);
-    window.removeEventListener("storage", handleStorageRefresh);
+    window.removeEventListener(DATA_REFRESH_EVENT, callback);
   };
 };

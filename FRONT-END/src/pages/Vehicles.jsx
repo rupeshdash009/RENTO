@@ -22,15 +22,7 @@ function Vehicles() {
     try {
       setMessage("");
 
-      const params = {};
-
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== "") {
-          params[key] = value;
-        }
-      });
-
-      const res = await API.get("/vehicles", { params });
+      const res = await API.get("/vehicles");
 
       const list = Array.isArray(res.data)
         ? res.data
@@ -42,9 +34,41 @@ function Vehicles() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, []);
 
   useAutoRefresh(fetchVehicles, 30000);
+
+  const filteredVehicles = useMemo(() => {
+    const search = filters.search.toLowerCase().trim();
+
+    return vehicles.filter((vehicle) => {
+      const matchesSearch =
+        !search ||
+        `${vehicle.vehicleName} ${vehicle.brand} ${vehicle.model} ${vehicle.location}`
+          .toLowerCase()
+          .includes(search);
+
+      const matchesType = !filters.type || vehicle.type === filters.type;
+      const matchesFuel =
+        !filters.fuelType || vehicle.fuelType === filters.fuelType;
+      const matchesLocation =
+        !filters.location || vehicle.location === filters.location;
+
+      const price = Number(vehicle.priceDaily || 0);
+
+      const matchesMin = !filters.minPrice || price >= Number(filters.minPrice);
+      const matchesMax = !filters.maxPrice || price <= Number(filters.maxPrice);
+
+      return (
+        matchesSearch &&
+        matchesType &&
+        matchesFuel &&
+        matchesLocation &&
+        matchesMin &&
+        matchesMax
+      );
+    });
+  }, [vehicles, filters]);
 
   const locations = useMemo(() => {
     return [...new Set(vehicles.map((item) => item.location).filter(Boolean))];
@@ -71,7 +95,7 @@ function Vehicles() {
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-8 text-white">
       <section className="mx-auto max-w-7xl">
-        <div className="mb-8 rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6 shadow-2xl shadow-black/30 backdrop-blur-xl">
+        <div className="mb-8 rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6 shadow-2xl shadow-black/30">
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
             <div>
               <p className="text-sm font-black uppercase tracking-[0.25em] text-blue-300">
@@ -83,8 +107,7 @@ function Vehicles() {
               </h1>
 
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-                Browse approved two-wheelers and four-wheelers with live
-                pricing, ratings and availability.
+                Browse approved vehicles with pricing, ratings and availability.
               </p>
             </div>
 
@@ -145,7 +168,6 @@ function Vehicles() {
               className="input-style"
             >
               <option value="">All locations</option>
-
               {locations.map((location) => (
                 <option key={location} value={location}>
                   {location}
@@ -180,7 +202,7 @@ function Vehicles() {
           </div>
 
           <p className="mt-4 text-sm font-semibold text-slate-400">
-            Showing {vehicles.length} vehicles
+            Showing {filteredVehicles.length} vehicles
           </p>
         </div>
 
@@ -194,13 +216,13 @@ function Vehicles() {
           <div className="rounded-[2rem] border border-slate-800 bg-slate-900 p-8 text-center text-slate-300">
             Loading vehicles...
           </div>
-        ) : vehicles.length === 0 ? (
+        ) : filteredVehicles.length === 0 ? (
           <div className="rounded-[2rem] border border-slate-800 bg-slate-900 p-8 text-center text-slate-300">
-            No vehicles found. Try changing filters.
+            No vehicles found.
           </div>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-            {vehicles.map((vehicle) => (
+            {filteredVehicles.map((vehicle) => (
               <VehicleCard key={vehicle._id} vehicle={vehicle} />
             ))}
           </div>

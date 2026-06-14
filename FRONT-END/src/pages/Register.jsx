@@ -1,68 +1,48 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { UserPlus, Building2 } from "lucide-react";
-import axios from "axios";
+import { Building2, Car, Lock, Mail, Phone, UserRound } from "lucide-react";
+import API from "../api/axios";
 
-const API_BASE_URL = "https://rento-backend-gmlw.onrender.com/api";
-
-function Register({ roleType }) {
+function Register({ roleType = "customer" }) {
   const navigate = useNavigate();
-  const isOwner = roleType === "owner";
 
   const [formData, setFormData] = useState({
     name: "",
     email: "",
+    phone: "",
     password: "",
   });
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const savedUser = localStorage.getItem("user");
+  const isOwner = roleType === "owner";
 
-    if (savedUser) {
-      const user = JSON.parse(savedUser);
-
-      if (user.role === "customer") {
-        navigate("/vehicles");
-      } else if (user.role === "owner") {
-        navigate("/owner-dashboard");
-      } else if (user.role === "admin") {
-        navigate("/admin-dashboard");
-      }
-    }
-  }, [navigate]);
-
-  const changeHandler = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleChange = (event) => {
+    setFormData((prev) => ({
+      ...prev,
+      [event.target.name]: event.target.value,
+    }));
   };
 
-  const submitHandler = async (e) => {
-    e.preventDefault();
-    setError("");
+  const handleSubmit = async (event) => {
+    event.preventDefault();
 
     try {
       setLoading(true);
+      setError("");
 
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-
-      const res = await axios.post(`${API_BASE_URL}/auth/register`, {
-        ...formData,
+      await API.post("/auth/register", {
+        name: formData.name.trim(),
+        email: formData.email.trim().toLowerCase(),
+        phone: formData.phone.trim(),
+        password: formData.password,
         role: roleType,
       });
 
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("user", JSON.stringify(res.data.user));
-
-      if (res.data.user.role === "owner") {
-        navigate("/owner-dashboard");
-      } else {
-        navigate("/vehicles");
-      }
-
-      window.location.reload();
+      navigate(isOwner ? "/owner-login" : "/customer-login", {
+        replace: true,
+      });
     } catch (error) {
       setError(error.response?.data?.message || "Registration failed");
     } finally {
@@ -71,92 +51,114 @@ function Register({ roleType }) {
   };
 
   return (
-    <div className="mx-auto flex min-h-[80vh] max-w-7xl items-center justify-center px-4">
-      <div className="glass w-full max-w-md rounded-[2rem] p-7">
-        <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 text-white">
-          {isOwner ? <Building2 /> : <UserPlus />}
-        </div>
+    <main className="min-h-screen bg-slate-950 px-4 py-16 text-white">
+      <div className="mx-auto flex min-h-[70vh] max-w-7xl items-center justify-center">
+        <div className="w-full max-w-md rounded-[2rem] border border-slate-800 bg-slate-900/90 p-8 shadow-2xl shadow-black/30">
+          <div className="mb-7">
+            <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 text-white">
+              {isOwner ? <Building2 size={26} /> : <Car size={26} />}
+            </div>
 
-        <h2 className="text-3xl font-black text-slate-950">
-          {isOwner ? "Owner Register" : "Customer Register"}
-        </h2>
+            <h1 className="text-3xl font-black text-white">
+              {isOwner ? "Owner Registration" : "Customer Registration"}
+            </h1>
 
-        <p className="mt-2 text-slate-500">
-          {isOwner
-            ? "Create owner account to manage vehicles and bookings."
-            : "Create customer account to browse and book vehicles."}
-        </p>
-
-        {error && (
-          <div className="mt-5 rounded-2xl bg-red-50 p-4 text-sm font-medium text-red-700">
-            {error}
+            <p className="mt-2 text-sm leading-6 text-slate-300">
+              {isOwner
+                ? "Create an owner account to list vehicles and manage rental bookings."
+                : "Create a customer account to book vehicles and manage trips."}
+            </p>
           </div>
-        )}
 
-        <form onSubmit={submitHandler} className="mt-6 space-y-4">
-          <input
-            className="input-style"
-            type="text"
-            name="name"
-            placeholder={isOwner ? "Owner / Agency Name" : "Full Name"}
-            value={formData.name}
-            onChange={changeHandler}
-            required
-          />
-
-          <input
-            className="input-style"
-            type="email"
-            name="email"
-            placeholder="Email Address"
-            value={formData.email}
-            onChange={changeHandler}
-            required
-          />
-
-          <input
-            className="input-style"
-            type="password"
-            name="password"
-            placeholder="Password minimum 6 characters"
-            value={formData.password}
-            onChange={changeHandler}
-            required
-            minLength={6}
-          />
-
-          <button
-            className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-60"
-            type="submit"
-            disabled={loading}
-          >
-            {loading
-              ? "Creating account..."
-              : isOwner
-                ? "Create Owner Account"
-                : "Create Customer Account"}
-          </button>
-        </form>
-
-        <div className="mt-6 text-center text-sm text-slate-500">
-          {isOwner ? (
-            <p>
-              Already owner?{" "}
-              <Link to="/staff" className="font-bold text-blue-700">
-                Go to Staff Portal
-              </Link>
-            </p>
-          ) : (
-            <p>
-              Already customer?{" "}
-              <Link to="/customer-login" className="font-bold text-blue-700">
-                Customer Login
-              </Link>
-            </p>
+          {error && (
+            <div className="mb-5 rounded-2xl border border-red-900/60 bg-red-950/50 px-4 py-3 text-sm font-bold text-red-300">
+              {error}
+            </div>
           )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <label className="block">
+              <span className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                <UserRound size={14} />
+                Name
+              </span>
+              <input
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                placeholder="Enter full name"
+                required
+                className="input-style"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                <Mail size={14} />
+                Email
+              </span>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="Enter email"
+                required
+                className="input-style"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                <Phone size={14} />
+                Phone
+              </span>
+              <input
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                placeholder="Enter phone number"
+                className="input-style"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                <Lock size={14} />
+                Password
+              </span>
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Create password"
+                required
+                minLength={6}
+                className="input-style"
+              />
+            </label>
+
+            <button
+              disabled={loading}
+              className="w-full rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-4 text-sm font-black text-white transition hover:from-blue-500 hover:to-purple-500 disabled:opacity-60"
+            >
+              {loading ? "Creating account..." : "Create Account"}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center text-sm text-slate-300">
+            Already registered?{" "}
+            <Link
+              to={isOwner ? "/owner-login" : "/customer-login"}
+              className="font-black text-blue-300"
+            >
+              Login here
+            </Link>
+          </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
 
