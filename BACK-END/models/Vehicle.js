@@ -72,21 +72,25 @@ const vehicleSchema = new mongoose.Schema(
     priceDaily: {
       type: Number,
       required: true,
+      min: 0,
     },
 
     priceWeekly: {
       type: Number,
       required: true,
+      min: 0,
     },
 
     priceMonthly: {
       type: Number,
       required: true,
+      min: 0,
     },
 
     depositAmount: {
       type: Number,
       default: 0,
+      min: 0,
     },
 
     location: {
@@ -133,6 +137,19 @@ const vehicleSchema = new mongoose.Schema(
     rejectionReason: {
       type: String,
       default: "",
+    },
+
+    averageRating: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5,
+    },
+
+    reviewCount: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
   },
   { timestamps: true },

@@ -2,7 +2,6 @@ import { Navigate, useLocation } from "react-router-dom";
 
 function ProtectedRoute({ children, allowedRoles = [] }) {
   const location = useLocation();
-
   const token = localStorage.getItem("token");
   const savedUser = localStorage.getItem("user");
 
@@ -15,11 +14,11 @@ function ProtectedRoute({ children, allowedRoles = [] }) {
   }
 
   if (!token || !user) {
-    if (location.pathname.includes("owner-dashboard")) {
+    if (location.pathname.includes("owner")) {
       return <Navigate to="/owner-login" replace />;
     }
 
-    if (location.pathname.includes("admin-dashboard")) {
+    if (location.pathname.includes("admin")) {
       return <Navigate to="/admin-login" replace />;
     }
 

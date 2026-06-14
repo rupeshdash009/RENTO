@@ -17,33 +17,34 @@ API.interceptors.request.use(
 
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 API.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error.response?.status;
+    const path = window.location.pathname;
 
-    if (status === 401) {
-      const currentPath = window.location.pathname;
+    if (
+      status === 401 &&
+      !path.includes("login") &&
+      !path.includes("register")
+    ) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
 
-      const authPages = [
-        "/customer-login",
-        "/owner-login",
-        "/admin-login",
-        "/customer-register",
-        "/owner-register",
-      ];
-
-      if (!authPages.includes(currentPath)) {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
+      if (path.includes("owner-dashboard")) {
+        window.location.href = "/owner-login";
+      } else if (path.includes("admin-dashboard")) {
+        window.location.href = "/admin-login";
+      } else if (path.includes("my-bookings")) {
+        window.location.href = "/customer-login";
       }
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 export default API;

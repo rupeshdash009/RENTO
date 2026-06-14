@@ -7,19 +7,20 @@ const {
   approveBooking,
   rejectBooking,
   cancelBooking,
+  completeBooking,
+  getVehicleUnavailableDates,
 } = require("../controllers/bookingController");
 
 const { protect, authorize } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-// Customer creates booking
+router.get("/vehicle/:vehicleId/unavailable-dates", getVehicleUnavailableDates);
+
 router.post("/", protect, authorize("customer"), createBooking);
 
-// Customer booking history
 router.get("/my-bookings", protect, authorize("customer"), getMyBookings);
 
-// Owner booking requests
 router.get(
   "/owner/bookings",
   protect,
@@ -27,7 +28,6 @@ router.get(
   getOwnerBookings,
 );
 
-// Owner approves booking
 router.put(
   "/:id/approve",
   protect,
@@ -35,10 +35,15 @@ router.put(
   approveBooking,
 );
 
-// Owner rejects booking
 router.put("/:id/reject", protect, authorize("owner", "admin"), rejectBooking);
 
-// Customer cancels booking
+router.put(
+  "/:id/complete",
+  protect,
+  authorize("owner", "admin"),
+  completeBooking,
+);
+
 router.put(
   "/:id/cancel",
   protect,

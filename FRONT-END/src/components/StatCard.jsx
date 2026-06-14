@@ -1,7 +1,7 @@
 function StatCard({ title, value, icon }) {
   return (
     <div className="glass-soft rounded-3xl p-5">
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-black text-blue-700">
         {icon}
       </div>
 

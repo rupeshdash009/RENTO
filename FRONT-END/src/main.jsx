@@ -4,7 +4,6 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import "./index.css";
 
-// Force full app dark mode always
 document.documentElement.classList.add("dark");
 document.documentElement.style.colorScheme = "dark";
 localStorage.setItem("rento-theme", "dark");

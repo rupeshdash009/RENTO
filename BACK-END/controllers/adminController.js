@@ -1,33 +1,105 @@
 const User = require("../models/User");
 const Vehicle = require("../models/Vehicle");
 const Booking = require("../models/Booking");
+const Review = require("../models/Review");
 
-const getAllUsers = async (req, res) => {
+const getAdminStats = async (req, res) => {
   try {
-    const users = await User.find({ role: "customer" })
-      .select("-password")
-      .sort({ createdAt: -1 });
+    const [
+      totalUsers,
+      totalCustomers,
+      totalOwners,
+      totalVehicles,
+      pendingVehicles,
+      approvedVehicles,
+      totalBookings,
+      paidBookings,
+      completedBookings,
+      totalReviews,
+    ] = await Promise.all([
+      User.countDocuments(),
+      User.countDocuments({ role: "customer" }),
+      User.countDocuments({ role: "owner" }),
+      Vehicle.countDocuments(),
+      Vehicle.countDocuments({ approvalStatus: "pending" }),
+      Vehicle.countDocuments({ approvalStatus: "approved" }),
+      Booking.countDocuments(),
+      Booking.countDocuments({ paymentStatus: "paid" }),
+      Booking.countDocuments({ status: "completed" }),
+      Review.countDocuments(),
+    ]);
 
-    res.status(200).json(users);
+    const revenueAgg = await Booking.aggregate([
+      {
+        $match: {
+          paymentStatus: "paid",
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalRevenue: { $sum: "$totalPrice" },
+        },
+      },
+    ]);
+
+    const monthlyRevenue = await Booking.aggregate([
+      {
+        $match: {
+          paymentStatus: "paid",
+        },
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" },
+          },
+          revenue: { $sum: "$totalPrice" },
+          bookings: { $sum: 1 },
+        },
+      },
+      { $sort: { "_id.year": 1, "_id.month": 1 } },
+      { $limit: 12 },
+    ]);
+
+    return res.status(200).json({
+      stats: {
+        totalUsers,
+        totalCustomers,
+        totalOwners,
+        totalVehicles,
+        pendingVehicles,
+        approvedVehicles,
+        totalBookings,
+        paidBookings,
+        completedBookings,
+        totalReviews,
+        totalRevenue: revenueAgg[0]?.totalRevenue || 0,
+      },
+      monthlyRevenue,
+    });
   } catch (error) {
-    res.status(500).json({
-      message: "Failed to fetch users",
-      error: error.message,
+    console.error("ADMIN STATS ERROR:", error);
+
+    return res.status(500).json({
+      message: "Failed to load admin stats",
     });
   }
 };
 
-const getAllOwners = async (req, res) => {
+const getAllUsers = async (req, res) => {
   try {
-    const owners = await User.find({ role: "owner" })
-      .select("-password")
-      .sort({ createdAt: -1 });
+    const users = await User.find().select("-password").sort({ createdAt: -1 });
 
-    res.status(200).json(owners);
+    return res.status(200).json({
+      users,
+    });
   } catch (error) {
-    res.status(500).json({
-      message: "Failed to fetch owners",
-      error: error.message,
+    console.error("GET USERS ERROR:", error);
+
+    return res.status(500).json({
+      message: "Failed to load users",
     });
   }
 };
@@ -42,17 +114,26 @@ const toggleUserStatus = async (req, res) => {
       });
     }
 
+    if (String(user._id) === String(req.user._id)) {
+      return res.status(400).json({
+        message: "Admin cannot deactivate own account",
+      });
+    }
+
     user.isActive = !user.isActive;
     await user.save();
 
-    res.status(200).json({
-      message: user.isActive ? "User activated" : "User deactivated",
+    return res.status(200).json({
+      message: user.isActive
+        ? "User activated successfully"
+        : "User deactivated successfully",
       user,
     });
   } catch (error) {
-    res.status(500).json({
+    console.error("TOGGLE USER ERROR:", error);
+
+    return res.status(500).json({
       message: "Failed to update user status",
-      error: error.message,
     });
   }
 };
@@ -60,14 +141,17 @@ const toggleUserStatus = async (req, res) => {
 const getAllVehicles = async (req, res) => {
   try {
     const vehicles = await Vehicle.find()
-      .populate("owner", "name email")
+      .populate("owner", "name email phone")
       .sort({ createdAt: -1 });
 
-    res.status(200).json(vehicles);
+    return res.status(200).json({
+      vehicles,
+    });
   } catch (error) {
-    res.status(500).json({
-      message: "Failed to fetch vehicles",
-      error: error.message,
+    console.error("ADMIN VEHICLES ERROR:", error);
+
+    return res.status(500).json({
+      message: "Failed to load vehicles",
     });
   }
 };
@@ -84,16 +168,19 @@ const approveVehicle = async (req, res) => {
 
     vehicle.approvalStatus = "approved";
     vehicle.rejectionReason = "";
+    vehicle.status = "available";
+
     await vehicle.save();
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Vehicle approved successfully",
       vehicle,
     });
   } catch (error) {
-    res.status(500).json({
+    console.error("APPROVE VEHICLE ERROR:", error);
+
+    return res.status(500).json({
       message: "Vehicle approval failed",
-      error: error.message,
     });
   }
 };
@@ -112,16 +199,18 @@ const rejectVehicle = async (req, res) => {
 
     vehicle.approvalStatus = "rejected";
     vehicle.rejectionReason = rejectionReason || "Rejected by admin";
+
     await vehicle.save();
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Vehicle rejected successfully",
       vehicle,
     });
   } catch (error) {
-    res.status(500).json({
+    console.error("REJECT VEHICLE ERROR:", error);
+
+    return res.status(500).json({
       message: "Vehicle rejection failed",
-      error: error.message,
     });
   }
 };
@@ -129,104 +218,29 @@ const rejectVehicle = async (req, res) => {
 const getAllBookings = async (req, res) => {
   try {
     const bookings = await Booking.find()
-      .populate("user", "name email")
-      .populate("owner", "name email")
       .populate("vehicle")
+      .populate("customer", "name email phone")
+      .populate("owner", "name email phone")
       .sort({ createdAt: -1 });
 
-    res.status(200).json(bookings);
-  } catch (error) {
-    res.status(500).json({
-      message: "Failed to fetch bookings",
-      error: error.message,
-    });
-  }
-};
-
-const getAdminAnalytics = async (req, res) => {
-  try {
-    const totalUsers = await User.countDocuments({ role: "customer" });
-    const totalOwners = await User.countDocuments({ role: "owner" });
-    const totalVehicles = await Vehicle.countDocuments();
-    const approvedVehicles = await Vehicle.countDocuments({
-      approvalStatus: "approved",
-    });
-    const pendingVehicles = await Vehicle.countDocuments({
-      approvalStatus: "pending",
-    });
-    const rejectedVehicles = await Vehicle.countDocuments({
-      approvalStatus: "rejected",
-    });
-
-    const totalBookings = await Booking.countDocuments();
-    const pendingBookings = await Booking.countDocuments({ status: "pending" });
-    const approvedBookings = await Booking.countDocuments({
-      status: "approved",
-    });
-    const rejectedBookings = await Booking.countDocuments({
-      status: "rejected",
-    });
-    const completedBookings = await Booking.countDocuments({
-      status: "completed",
-    });
-
-    const revenueResult = await Booking.aggregate([
-      {
-        $match: {
-          status: { $in: ["approved", "completed"] },
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          totalRevenue: { $sum: "$totalAmount" },
-        },
-      },
-    ]);
-
-    const totalRevenue = revenueResult[0]?.totalRevenue || 0;
-
-    const bookingConversionRate =
-      totalBookings > 0
-        ? Math.round((approvedBookings / totalBookings) * 100)
-        : 0;
-
-    const vehicleUtilizationRate =
-      totalVehicles > 0
-        ? Math.round((approvedBookings / totalVehicles) * 100)
-        : 0;
-
-    res.status(200).json({
-      totalUsers,
-      totalOwners,
-      totalVehicles,
-      approvedVehicles,
-      pendingVehicles,
-      rejectedVehicles,
-      totalBookings,
-      pendingBookings,
-      approvedBookings,
-      rejectedBookings,
-      completedBookings,
-      totalRevenue,
-      bookingConversionRate,
-      vehicleUtilizationRate,
+    return res.status(200).json({
+      bookings,
     });
   } catch (error) {
-    res.status(500).json({
-      message: "Failed to fetch analytics",
-      error: error.message,
+    console.error("ADMIN BOOKINGS ERROR:", error);
+
+    return res.status(500).json({
+      message: "Failed to load bookings",
     });
   }
 };
 
 module.exports = {
+  getAdminStats,
   getAllUsers,
-  getAllOwners,
   toggleUserStatus,
   getAllVehicles,
   approveVehicle,
   rejectVehicle,
   getAllBookings,
-  getAdminAnalytics,
 };

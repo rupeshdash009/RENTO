@@ -20,12 +20,11 @@ function App() {
       <Navbar />
 
       <Routes>
-        {/* Public pages */}
         <Route path="/" element={<Home />} />
+
         <Route path="/vehicles" element={<Vehicles />} />
         <Route path="/vehicles/:id" element={<VehicleDetails />} />
 
-        {/* Customer auth */}
         <Route
           path="/customer-login"
           element={<Login expectedRole="customer" />}
@@ -35,17 +34,14 @@ function App() {
           element={<Register roleType="customer" />}
         />
 
-        {/* Owner / staff portal */}
         <Route path="/staff" element={<OwnerPortal />} />
         <Route path="/owner" element={<OwnerPortal />} />
 
         <Route path="/owner-login" element={<Login expectedRole="owner" />} />
         <Route path="/owner-register" element={<Register roleType="owner" />} />
 
-        {/* Admin auth */}
         <Route path="/admin-login" element={<AdminLogin />} />
 
-        {/* Customer protected dashboard */}
         <Route
           path="/my-bookings"
           element={
@@ -55,7 +51,6 @@ function App() {
           }
         />
 
-        {/* Owner protected dashboard */}
         <Route
           path="/owner-dashboard"
           element={
@@ -65,7 +60,6 @@ function App() {
           }
         />
 
-        {/* Admin protected dashboard */}
         <Route
           path="/admin-dashboard"
           element={
@@ -75,7 +69,6 @@ function App() {
           }
         />
 
-        {/* Old route redirects */}
         <Route
           path="/login"
           element={<Navigate to="/customer-login" replace />}
@@ -85,7 +78,6 @@ function App() {
           element={<Navigate to="/customer-register" replace />}
         />
 
-        {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>

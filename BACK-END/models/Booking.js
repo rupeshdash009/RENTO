@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const bookingSchema = new mongoose.Schema(
   {
-    user: {
+    customer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
@@ -33,12 +33,13 @@ const bookingSchema = new mongoose.Schema(
     rentalPlan: {
       type: String,
       enum: ["daily", "weekly", "monthly"],
-      required: true,
+      default: "daily",
     },
 
-    totalAmount: {
+    totalPrice: {
       type: Number,
       required: true,
+      min: 0,
     },
 
     status: {
@@ -53,21 +54,32 @@ const bookingSchema = new mongoose.Schema(
       default: "unpaid",
     },
 
-    payment: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Payment",
+    paymentId: {
+      type: String,
+      default: "",
+    },
+
+    rejectionReason: {
+      type: String,
+      default: "",
+    },
+
+    completedAt: {
+      type: Date,
       default: null,
     },
 
-    paidAt: {
+    cancelledAt: {
       type: Date,
       default: null,
     },
   },
-  {
-    timestamps: true,
-  },
+  { timestamps: true },
 );
+
+bookingSchema.index({ vehicle: 1, startDate: 1, endDate: 1 });
+bookingSchema.index({ customer: 1 });
+bookingSchema.index({ owner: 1 });
 
 module.exports =
   mongoose.models.Booking || mongoose.model("Booking", bookingSchema);
